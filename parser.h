@@ -55,6 +55,8 @@ typedef struct {
     const char* key;
     unsigned char val;
 } KeyPair;
+extern const KeyPair DUCK_KEYS[170];
+extern const KeyWordPair KEYWORDS[6];
 extern PARSING_STATE parse_line(const char* input,unsigned short input_len,UsbCommand* cmd, size_t* index);
 extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len ,UsbCommand** cmd_list, size_t* cmd_list_len);
 
