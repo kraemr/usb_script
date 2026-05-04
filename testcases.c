@@ -1,7 +1,7 @@
 #ifdef TEST
 #include "parser.h"
 #include <stddef.h>
-
+#include <stdint.h>
 const char * SUCCESS = "passed";
 const char * FAILURE = "failure";
 
@@ -28,6 +28,7 @@ typedef struct TestCase {
     const char* name;
     const char* str;
     UsbCommand expected_commands[128];
+    KeysContext ctx;
     size_t commands_count;
     PARSING_STATE expected_state;
 }TestCase;
@@ -39,6 +40,9 @@ const TestCase testcases[] = {
         {
             {PRESS,1,0,0x27,0x1E,0x1F,0x20,0x21,0x22}
         },
+        {
+            {0,0,0,0,0,0}
+        },
         1,
         DONE,
     },
@@ -47,6 +51,9 @@ const TestCase testcases[] = {
         "press 0;",
         {
             {PRESS,1,0,0x27,0,0,0,0,0}
+        },
+        {
+            {0}
         },
         1,
         DONE,
@@ -58,6 +65,9 @@ const TestCase testcases[] = {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
             {PRESS,1,0,0x1F,0x20,0,0,0,0}
         },
+        {
+            {0}
+        },
         2,
         DONE,
     },
@@ -68,6 +78,9 @@ const TestCase testcases[] = {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
             {PRESS,1,0,0x1F,0x20,0,0,0,0}
         },
+       {
+            {0}
+        },
         2,
         DONE,
     },
@@ -77,6 +90,9 @@ const TestCase testcases[] = {
         {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
             {PRESS,1,0,0x1F,0x20,0,0,0,0}
+        },
+        {
+            {0}
         },
         2,
         DONE,
@@ -88,6 +104,9 @@ const TestCase testcases[] = {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
             {PRESS,1,0,0x1F,0x20,0,0,0,0}
         },
+        {
+            {0}
+        },
         2,
         DONE,
     },
@@ -98,6 +117,9 @@ const TestCase testcases[] = {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
             {PRESS,1,0,0x1F,0x20,0,0,0,0}
         },
+        {
+            {0}
+        },
         2,
         DONE,
     },
@@ -107,6 +129,7 @@ const TestCase testcases[] = {
         {
             {PRESS,1,0,0x50,0x4F,0x52,0x51},
         },
+        {0},
         1,
         DONE,
     },
@@ -172,8 +195,8 @@ const TestCase testcases[] = {
         {PRESS, 1, 0, 0x1C, 0x1D, 0, 0, 0, 0}, // Y, Z
 
         // Named Keys & Commands
-        {PRESS, 1, 0, 0x79, 0xE2, 0, 0, 0, 0}, // AGAIN, ALT_LEFT
-        {PRESS, 1, 0, 0xE6, 0x99, 0, 0, 0, 0}, // ALT_RIGHT, ALTERNATE_ERASE
+        {PRESS, 1, 0 | 0b00000100, 0x79, 0, 0, 0, 0, 0}, // AGAIN, ALT_LEFT
+        {PRESS, 1, 0 | 0b01000000, 0x99, 0, 0, 0, 0, 0}, // ALT_RIGHT, ALTERNATE_ERASE
         {PRESS, 1, 0, 0x34, 0x65, 0, 0, 0, 0}, // APOSTROPHE, APPLICATION
         {PRESS, 1, 0, 0x51, 0x50, 0, 0, 0, 0}, // ARROW_DOWN, ARROW_LEFT
         {PRESS, 1, 0, 0x4F, 0x52, 0, 0, 0, 0}, // ARROW_RIGHT, ARROW_UP
@@ -181,8 +204,8 @@ const TestCase testcases[] = {
         {PRESS, 1, 0, 0x2F, 0x30, 0, 0, 0, 0}, // BRACKET_LEFT, BRACKET_RIGHT
         {PRESS, 1, 0, 0x9B, 0x39, 0, 0, 0, 0}, // CANCEL, CAPS_LOCK
         {PRESS, 1, 0, 0x9C, 0xA2, 0, 0, 0, 0}, // CLEAR, CLEAR_AGAIN
-        {PRESS, 1, 0, 0x36, 0xE0, 0, 0, 0, 0}, // COMMA, CONTROL_LEFT
-        {PRESS, 1, 0, 0xE4, 0x7C, 0, 0, 0, 0}, // CONTROL_RIGHT, COPY
+        {PRESS, 1, 0 | 0b00000001, 0x36, 0, 0, 0, 0, 0}, // COMMA, CONTROL_LEFT
+        {PRESS, 1, 0 | 0b00010000, 0x7c, 0, 0, 0, 0, 0}, // CONTROL_RIGHT, COPY
         {PRESS, 1, 0, 0xA3, 0x7B, 0, 0, 0, 0}, // CRSEL_PROPS, CUT
         {PRESS, 1, 0, 0x4C, 0x4D, 0, 0, 0, 0}, // DELETE, END
         {PRESS, 1, 0, 0x28, 0x2E, 0, 0, 0, 0}, // ENTER, EQUAL
@@ -205,8 +228,8 @@ const TestCase testcases[] = {
         {PRESS, 1, 0, 0x73, 0x7E, 0, 0, 0, 0}, // F24, FIND
 
         // Special & Navigation
-        {PRESS, 1, 0, 0x35, 0xE3, 0, 0, 0, 0}, // GRAVE, GUI_LEFT
-        {PRESS, 1, 0, 0xE7, 0x75, 0, 0, 0, 0}, // GUI_RIGHT, HELP
+        {PRESS, 1, 0 | 0b00001000, 0x35, 0, 0, 0, 0, 0}, // GRAVE, GUI_LEFT
+        {PRESS, 1, 0 | 0b10000000, 0x75, 0, 0, 0, 0, 0}, // GUI_RIGHT, HELP
         {PRESS, 1, 0, 0x4A, 0x49, 0, 0, 0, 0}, // HOME, INSERT
         {PRESS, 1, 0, 0x87, 0x88, 0, 0, 0, 0}, // KANJI1, KANJI2
         {PRESS, 1, 0, 0x89, 0x8A, 0, 0, 0, 0}, // KANJI3, KANJI4
@@ -242,21 +265,48 @@ const TestCase testcases[] = {
         {PRESS, 1, 0, 0x9D, 0x9E, 0, 0, 0, 0}, // PRIOR, RETURN
         {PRESS, 1, 0, 0x47, 0x77, 0, 0, 0, 0}, // SCROLL_LOCK, SELECT
         {PRESS, 1, 0, 0x33, 0x9F, 0, 0, 0, 0}, // SEMICOLON, SEPARATOR
-        {PRESS, 1, 0, 0xE1, 0xE5, 0, 0, 0, 0}, // SHIFT_LEFT, SHIFT_RIGHT
+        {PRESS, 1, 0b00000010 | 0b00100000, 0, 0, 0, 0, 0, 0}, // SHIFT_LEFT, SHIFT_RIGHT
         {PRESS, 1, 0, 0x38, 0x2C, 0, 0, 0, 0}, // SLASH, SPACE
         {PRESS, 1, 0, 0x78, 0x9A, 0, 0, 0, 0}, // STOP, SYSREQ
         {PRESS, 1, 0, 0x2B, 0x7A, 0, 0, 0, 0}, // TAB, UNDO
         {PRESS, 1, 0, 0x81, 0x80, 0, 0, 0, 0}  // VOLUME_DOWN, VOLUME_UP
     },
+    {
+        {0}
+    },
     85,
     DONE
-    }   
+    },
+
+    {
+        "zero_one_held",
+        "HOLD 0,1;",
+        {
+            {HOLD,1,0,0x27,0x1E,0,0,0},
+        },
+        {0x27,0x1E},
+        1,
+        DONE,
+    },
+    {
+        "zeron_one_held_one_release",
+        "HOLD 0,1;\nRELEASE 1;",
+        {
+            {HOLD,   1,0,0x27,0x1E,0,0,0},
+            {RELEASE,1,0,0x1E,0,0,0,0},
+        },
+        {0x27,0},
+        2,
+        DONE,
+    },
+
+
 };
 
 /*
     returns 1 if the test passed, 0 if not
 */
-int check_test_passes(TestCase* testcase,UsbCommand* cmds,size_t cmds_count,PARSING_STATE state) {
+int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_t cmds_count,PARSING_STATE state) {
     int cmd_count_matches = cmds_count == testcase->commands_count;
     if(!cmd_count_matches) {
         printf("Testcase %s cmds_count mismatch exepcted: %zu, got %zu \n",testcase->name,testcase->commands_count,cmds_count);
@@ -280,14 +330,18 @@ int check_test_passes(TestCase* testcase,UsbCommand* cmds,size_t cmds_count,PARS
             cmds_match = 0;
             break;
         }
-
+    }
+    int key_state_matches = memcmp(ctx->keys,testcase->ctx.keys,6 * sizeof(uint8_t) ) == 0;
+    if(!key_state_matches) {
+        printf("Testcase %s key_state_matches mismatch \n",testcase->name);
+        return 0;
     }
 
     if(!cmds_match) {
         printf("Testcase %s cmds_match mismatch \n",testcase->name);
         return 0;
     }
-    return cmd_count_matches && state_matches && cmds_match;
+    return cmd_count_matches && state_matches && cmds_match && key_state_matches;
 }
 
 int main(){        
@@ -295,12 +349,15 @@ int main(){
     printf("Testcases: \n");
     for(size_t i = 0; i < count; i++ ) {
         UsbCommand* cmds = NULL;
+        KeysContext ctx = {0};
         size_t cmds_count = 0;
         TestCase test = testcases[i];
-        PARSING_STATE state =  parse_all_alloc(test.str,strlen(test.str),&cmds,&cmds_count);                 
-        int test_result = check_test_passes(&test,cmds,cmds_count,state);
+        PARSING_STATE state =  parse_all_alloc(test.str,strlen(test.str),&ctx,&cmds,&cmds_count);                 
+        int test_result = check_test_passes(&test,cmds,&ctx,cmds_count,state);
         const char* result_str = test_result ? SUCCESS : FAILURE;
         printf("Testcase %s %s\n",test.name,result_str);
+        //print_usb_command(cmds);
+        printf("%u %u \n",ctx.keys[0],ctx.keys[1]);
         free(cmds);        
     }    
 }

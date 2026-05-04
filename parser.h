@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 typedef enum USB_COMMAND {
 	SET_LANG,
@@ -21,7 +22,11 @@ typedef struct KeyWordPair {
     USB_COMMAND cmd;
 }KeyWordPair;
 
-
+typedef struct {
+    // keys is an array where each bit represents a given index in the DUCK_KEYS array
+    unsigned char keys[6];
+}KeysContext;
+void set_key_index(KeysContext* ktx,unsigned char held, size_t index);
 /*
 STATE Machine
 	EXPECT_KEYWORD -> expects next token to be whitespace or a keyword like press PRESS hold HOLD etc
@@ -51,13 +56,15 @@ typedef struct UsbCommand {
 	unsigned char value[8];
 }UsbCommand;
 
-typedef struct {
+
+typedef struct __attribute__((packed)) {
     const char* key;
     unsigned char val;
 } KeyPair;
+
 extern const KeyPair DUCK_KEYS[170];
 extern const KeyWordPair KEYWORDS[6];
-extern PARSING_STATE parse_line(const char* input,unsigned short input_len,UsbCommand* cmd, size_t* index);
-extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len ,UsbCommand** cmd_list, size_t* cmd_list_len);
+extern PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index);
+extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len,KeysContext* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len);
 
 #endif

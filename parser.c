@@ -2,15 +2,14 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdint.h>
-
-
+#include <sys/types.h>
 #define DUCK_KEYS_COUNT sizeof(DUCK_KEYS) / sizeof(KeyPair)
 // index 2 is start of the keys, 0 is REPORT_ID (1 being report id for keyb)
 #define KEYS_START 2 
 // The index into the .value part of UsbCommand indicating key modifiers like CTRL,SHIFT ...
 #define KEY_MOD_INDEX 1
 // This defines the count of UsbCommands allocated in parse_all_alloc
-#define PREALLOC_AMOUNT 64
+#define PREALLOC_AMOUNT 128
 // 32 Keys being able to be held is probably a sane Default, who in their right mind wants to hold 170 keys?
 // If you want you can obviously change it anyways
 #define MAX_KEYS_HELD 32
@@ -42,15 +41,31 @@ void fill_usb_command(volatile UsbCommand* cmd) {
 	cmd->value[6] = 0;
 	cmd->value[7] = 0;
 }
-	
-PARSING_STATE parse_line(const char* input,unsigned short input_len,UsbCommand* cmd, size_t* index) {
+
+// later change it to bit indexed
+void set_key(KeysContext* ktx,unsigned char held, unsigned char val) {
+    for(int i = 0; i < sizeof(ktx->keys); i++) {
+        if(ktx->keys[i] == val && held == 0) {
+            ktx->keys[i] = 0;
+            return;
+        }else if(held == 1 && ktx->keys[i] == 0){
+            ktx->keys[i] = val;
+            return;
+        }   
+    }
+}
+
+PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index) {
 	PARSING_STATE state = EXPECT_KEYWORD;
     size_t keys_index = KEYS_START;
     size_t done_at = 0;
-	if (cmd == NULL) {
+	
+    if (cmd == NULL) {
 		return NO_REFERENCE_FOUND;
 	}    
-	fill_usb_command(cmd);
+	
+    fill_usb_command(cmd);
+
 	while((*index) < input_len) {
         if(input[(*index)] == ' ') {
             (*index)++;
@@ -110,16 +125,29 @@ PARSING_STATE parse_line(const char* input,unsigned short input_len,UsbCommand* 
                 }
 
 
+
                // printf("str_len_until_comma_whitespace_semi: %zu\n",str_len_until_comma_whitespace_semi);
                 int res = memcmp(&input[(*index)],DUCK_KEYS[j].key,len);
                // printf("failed to find %s \n", &input[(*index)]);
                 if(res == 0) {
-                    cmd->value[keys_index] = DUCK_KEYS[j].val;                    
+                    uint8_t is_key_mod = 
+                        j == 37 || j == 38 || j == 55 || j == 56 || j == 95 || j == 96 || j == 160 || j == 161;
+                    if(is_key_mod){
+                        cmd->value[KEY_MOD_INDEX] |= DUCK_KEYS[j].val;
+                    }
+                    // We only want to change key state if HOLD or RELEASE is specified
+                    else if(cmd->command == HOLD || cmd->command == RELEASE) {
+                        set_key(kctx,cmd->command == HOLD,DUCK_KEYS[j].val);
+                        cmd->value[keys_index] = DUCK_KEYS[j].val;     
+                        keys_index++;           
+                    }else{
+                        cmd->value[keys_index] = DUCK_KEYS[j].val;     
+                        keys_index++;               
+                    }
                     #ifdef DEBUG
                     printf("Found Value: %u\n", DUCK_KEYS[j].val);                
                     #endif
                     state = EXPECT_COMMA_COLON;
-                    keys_index++;
                     (*index) += len;
                     break;
                 }
@@ -174,18 +202,17 @@ PARSING_STATE parse_line(const char* input,unsigned short input_len,UsbCommand* 
 }
 
 
-PARSING_STATE parse_all_alloc(const char* input, size_t input_len ,UsbCommand** cmd_list, size_t* cmd_list_len) {    
+PARSING_STATE parse_all_alloc(const char* input, size_t input_len,KeysContext* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len) {    
     (*cmd_list) = malloc(PREALLOC_AMOUNT * sizeof(UsbCommand) );
     size_t index = 0;
     (*cmd_list_len) = 0;
     UsbCommand* cmd_list_ptr = (*cmd_list);
     PARSING_STATE state = DONE;
-
     while ( index < input_len ) {
         #ifdef DEBUG
             printf("STARTED PARSING LINE \n");
         #endif
-        state = parse_line(input,input_len,&cmd_list_ptr[(*cmd_list_len)],&index);
+        state = parse_line(input,input_len,ctx,&cmd_list_ptr[(*cmd_list_len)],&index);
         #ifdef DEBUG
             printf("ENDED PARSING LINE \n");
         #endif
