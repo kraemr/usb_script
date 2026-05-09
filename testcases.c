@@ -293,7 +293,7 @@ const TestCase testcases[] = {
         "HOLD 0,1;\nRELEASE 1;",
         {
             {HOLD,   1,0,0x27,0x1E,0,0,0},
-            {RELEASE,1,0,0x1E,0,0,0,0},
+            {RELEASE,1,0,0x27,0,0,0,0},
         },
         {0x27,0},
         2,
@@ -344,9 +344,20 @@ int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_
     return cmd_count_matches && state_matches && cmds_match && key_state_matches;
 }
 
+void execute_payload(UsbCommand* cmd, KeysContext* ctx){
+    uint8_t keys_i = 0;
+    uint8_t keymod = cmd->value[1];
+    uint8_t report_type = cmd->value[0];
+    uint8_t* keys = &cmd->value[2];
+    //uint8_t pressed = send_hid_keyboard_report(&cmd->value[2],keymod);
+    printf("sending kb input %d %u %u %u %u %u %u\n",keymod,keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]);
+}
+
 int main(){        
     size_t count = (sizeof(testcases) / sizeof(TestCase));
+    
     printf("Testcases: \n");
+
     for(size_t i = 0; i < count; i++ ) {
         UsbCommand* cmds = NULL;
         KeysContext ctx = {0};
@@ -360,5 +371,23 @@ int main(){
         printf("%u %u \n",ctx.keys[0],ctx.keys[1]);
         free(cmds);        
     }    
+
+
+    size_t index = 0;
+    size_t cmd_list_len = 0;
+    UsbCommand cmd;
+    PARSING_STATE state = DONE;
+    KeysContext ctx= {0};
+    const char* input = "HOLD 0,1;RELEASE 0;PRESS 2;";
+    while ( index < strlen(input) ) {
+        state = parse_line(input,strlen(input),&ctx,&cmd,&index);
+        execute_payload(&cmd,&ctx);
+        if(state == DONE) {
+            cmd_list_len++;                            
+        }else {                    
+            break;
+        }
+    }
+
 }
 #endif

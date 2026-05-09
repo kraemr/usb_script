@@ -28,28 +28,42 @@ unsigned char get_duck_key(char * key_name, size_t len) {
 }
 
 
-void fill_usb_command(volatile UsbCommand* cmd) {
+void fill_usb_command(UsbCommand* cmd, KeysContext* ctx) {
 	// 0:1 means ReportIDKeyboard
 	cmd->value[0] = 1;
 	// 1 Contains OR ed keymodifiers
 	cmd->value[1] = 0;
 	// 6 keypresses possible to send at once
-	cmd->value[2] = 0;
-	cmd->value[3] = 0;
-	cmd->value[4] = 0;
-	cmd->value[5] = 0;
-	cmd->value[6] = 0;
-	cmd->value[7] = 0;
+	cmd->value[2] = ctx->keys[0];
+	cmd->value[3] = ctx->keys[1];
+	cmd->value[4] = ctx->keys[2];
+	cmd->value[5] = ctx->keys[3];
+	cmd->value[6] = ctx->keys[4];
+	cmd->value[7] = ctx->keys[5];
+}
+
+void set_cmd_key(UsbCommand* cmd, unsigned char val) {
+    for(int i = 2; i < sizeof(cmd->value); i++) {
+        if(cmd->value[i] == val) {
+            cmd->value[i] = 0;
+            return;
+        }else if(cmd->value[i] == 0){
+            cmd->value[i] = val;
+            return;
+        }   
+    }
 }
 
 // later change it to bit indexed
-void set_key(KeysContext* ktx,unsigned char held, unsigned char val) {
+void set_key(KeysContext* ktx, UsbCommand* cmd,unsigned char held, unsigned char val) {
     for(int i = 0; i < sizeof(ktx->keys); i++) {
         if(ktx->keys[i] == val && held == 0) {
             ktx->keys[i] = 0;
+            set_cmd_key(cmd,val);
             return;
         }else if(held == 1 && ktx->keys[i] == 0){
             ktx->keys[i] = val;
+            set_cmd_key(cmd,val);
             return;
         }   
     }
@@ -57,14 +71,13 @@ void set_key(KeysContext* ktx,unsigned char held, unsigned char val) {
 
 PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index) {
 	PARSING_STATE state = EXPECT_KEYWORD;
-    size_t keys_index = KEYS_START;
     size_t done_at = 0;
 	
     if (cmd == NULL) {
 		return NO_REFERENCE_FOUND;
 	}    
 	
-    fill_usb_command(cmd);
+    fill_usb_command(cmd, kctx);
 
 	while((*index) < input_len) {
         if(input[(*index)] == ' ') {
@@ -137,12 +150,9 @@ PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext*
                     }
                     // We only want to change key state if HOLD or RELEASE is specified
                     else if(cmd->command == HOLD || cmd->command == RELEASE) {
-                        set_key(kctx,cmd->command == HOLD,DUCK_KEYS[j].val);
-                        cmd->value[keys_index] = DUCK_KEYS[j].val;     
-                        keys_index++;           
+                        set_key(kctx,cmd,cmd->command == HOLD,DUCK_KEYS[j].val);
                     }else{
-                        cmd->value[keys_index] = DUCK_KEYS[j].val;     
-                        keys_index++;               
+                        set_cmd_key(cmd,DUCK_KEYS[j].val);
                     }
                     #ifdef DEBUG
                     printf("Found Value: %u\n", DUCK_KEYS[j].val);                
