@@ -38,24 +38,26 @@ const TestCase testcases[] = {
         "testcase_normal_keypress",
         "press 0,1,2,3,4,5;",
         {
-            {PRESS,1,0,0x27,0x1E,0x1F,0x20,0x21,0x22}
+            {PRESS,1,0,0x27,0x1E,0x1F,0x20,0x21,0x22},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
         {
             {0,0,0,0,0,0}
         },
-        1,
+        2,
         DONE,
     },
     {
         "testcase_one_key",
         "press 0;",
         {
-            {PRESS,1,0,0x27,0,0,0,0,0}
+            {PRESS,1,0,0x27,0,0,0,0,0},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
         {
             {0}
         },
-        1,
+        2,
         DONE,
     },
     {
@@ -63,12 +65,14 @@ const TestCase testcases[] = {
         "press 0,1;press 2,3;",
         {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0}
+            {RELEASE,1,0,0,0,0,0,0,0},
+            {PRESS,1,0,0x1F,0x20,0,0,0,0},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
         {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
@@ -76,12 +80,14 @@ const TestCase testcases[] = {
         "press 0,1;\npress 2,3;",
         {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0}
+            {RELEASE,1,0,0,0,0,0,0,0},
+            {PRESS,1,0,0x1F,0x20,0,0,0,0},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
        {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
@@ -89,12 +95,14 @@ const TestCase testcases[] = {
         "press 0,1;\r\npress 2,3;",
         {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0}
+            {RELEASE,1,0,0,0,0,0,0,0},
+            {PRESS,1,0,0x1F,0x20,0,0,0,0},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
         {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
@@ -102,12 +110,14 @@ const TestCase testcases[] = {
         "press 0,1;\rpress 2,3;",
         {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0}
+            {RELEASE,1,0,0,0,0,0,0,0},
+            {PRESS,1,0,0x1F,0x20,0,0,0,0},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
         {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
@@ -115,12 +125,14 @@ const TestCase testcases[] = {
         "press 0,1;\r\npress 2,3;",
         {
             {PRESS,1,0,0x27,0x1E,0,0,0,0},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0}
+            {RELEASE,1,0,0,0,0,0,0,0},
+            {PRESS,1,0,0x1F,0x20,0,0,0,0},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
         {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
@@ -128,9 +140,10 @@ const TestCase testcases[] = {
         "press ARROW_LEFT,ARROW_RIGHT,ARROW_UP,ARROW_DOWN;",
         {
             {PRESS,1,0,0x50,0x4F,0x52,0x51},
+            {RELEASE,1,0,0,0,0,0,0,0},
         },
         {0},
-        1,
+        2,
         DONE,
     },
     {
@@ -307,16 +320,21 @@ const TestCase testcases[] = {
     returns 1 if the test passed, 0 if not
 */
 int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_t cmds_count,PARSING_STATE state) {
-    int cmd_count_matches = cmds_count == testcase->commands_count;
-    if(!cmd_count_matches) {
-        printf("Testcase %s cmds_count mismatch exepcted: %zu, got %zu \n",testcase->name,testcase->commands_count,cmds_count);
-        return 0;
-    }
+
     int state_matches = state == testcase->expected_state;
     if(!state_matches) {
         printf("Testcase %s state_matches mismatch \n",testcase->name);
         return 0;
     }
+
+    int cmd_count_matches = cmds_count == testcase->commands_count;
+    if(!cmd_count_matches) {
+        printf("Testcase %s cmds_count mismatch exepcted: %zu, got %zu \n",testcase->name,testcase->commands_count,cmds_count);
+        //uint8_t pressed = send_hid_keyboard_report(&cmd->value[2],keymod);
+        return 0;
+    }
+
+
     int cmds_match = 1;
     for(int i = 0; i < cmds_count;i++) {
         UsbCommand* test_cmd = &testcase->expected_commands[i];
@@ -328,6 +346,10 @@ int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_
 
         if( memcmp(cmd->value,test_cmd->value,sizeof(test_cmd->value)) != 0  ) {
             cmds_match = 0;
+            uint8_t* keys = &test_cmd->value[2];
+            printf("expect kb input %d %u %u %u %u %u %u\n",test_cmd->value[1],keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]);
+            keys = &cmd->value[2];
+            printf("got kb input %d %u %u %u %u %u %u\n",cmds->value[1],keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]);
             break;
         }
     }
@@ -368,7 +390,6 @@ int main(){
         const char* result_str = test_result ? SUCCESS : FAILURE;
         printf("Testcase %s %s\n",test.name,result_str);
         //print_usb_command(cmds);
-        printf("%u %u \n",ctx.keys[0],ctx.keys[1]);
         free(cmds);        
     }    
 
@@ -380,8 +401,15 @@ int main(){
     KeysContext ctx= {0};
     const char* input = "HOLD 0,1;RELEASE 0;PRESS 2;";
     while ( index < strlen(input) ) {
-        state = parse_line(input,strlen(input),&ctx,&cmd,&index);
+        state = parse_line(input,strlen(input),&ctx,&cmd,&index,state);
         execute_payload(&cmd,&ctx);
+        printf("%d \n",state);
+        if( state == DONE_PRESS){
+            state = parse_line(input,strlen(input),&ctx,&cmd,&index,state);
+            execute_payload(&cmd,&ctx);
+            cmd_list_len++;                            
+        }
+
         if(state == DONE) {
             cmd_list_len++;                            
         }else {                    

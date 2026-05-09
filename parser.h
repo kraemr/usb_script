@@ -49,6 +49,7 @@ typedef enum PARSING_STATE {
 	LINE_TOO_LONG,
 	NO_REFERENCE_FOUND,
 	DONE,
+	DONE_PRESS, // Generate a cmd filled with KeysContext
 }PARSING_STATE;
 
 typedef struct UsbCommand {
@@ -64,7 +65,7 @@ typedef struct __attribute__((packed)) {
 
 extern const KeyPair DUCK_KEYS[170];
 extern const KeyWordPair KEYWORDS[6];
-extern PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index);
+extern PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index,PARSING_STATE previous_state);
 extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len,KeysContext* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len);
 
 #endif
