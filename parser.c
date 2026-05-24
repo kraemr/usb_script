@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/types.h>
+
 #define DUCK_KEYS_COUNT sizeof(DUCK_KEYS) / sizeof(KeyPair)
 // index 2 is start of the keys, 0 is REPORT_ID (1 being report id for keyb)
 #define KEYS_START 2 
@@ -13,7 +14,7 @@
 #define PREALLOC_AMOUNT 256
 // 32 Keys being able to be held is probably a sane Default, who in their right mind wants to hold 170 keys?
 // If you want you can obviously change it anyways
-#define MAX_KEYS_HELD 32
+#define MAX_KEYS_HELD 6
 #define KEY_WORD_COUNT sizeof(KEYWORDS) / sizeof(KeyWordPair)
 
 unsigned char get_duck_key(char * key_name, size_t len) {
@@ -121,6 +122,9 @@ PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext*
             }        
         }
         else if(state == EXPECT_DATA){
+            if(cmd->command == DELAY) {
+                
+            }
             // Could be heavily simplified with a hash map
             const char* input_ptr = &input[(*index)];
             for(size_t j = 0; j < DUCK_KEYS_COUNT; j++) {
@@ -146,7 +150,6 @@ PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext*
                 }
 
                 int res = memcmp(&input[(*index)],DUCK_KEYS[j].key,len);
-                
                 if(res == 0) {
                     uint8_t is_key_mod = 
                         j == 37 || j == 38 || j == 55 || j == 56 || j == 95 || j == 96 || j == 160 || j == 161;

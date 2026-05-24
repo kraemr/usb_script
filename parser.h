@@ -14,6 +14,7 @@ typedef enum USB_COMMAND {
 	HOLD, // Hold a button
 	RELEASE,// Release a button that is held
 	RESTART, // When put at the end, program gets run again after finished, good for commands that need to be sent repeatedly 
+	DELAY,
 	UNSUPPORTED,
 }USB_COMMAND;
 
