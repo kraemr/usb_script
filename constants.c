@@ -1,13 +1,15 @@
 #include "parser.h"
 #include <stdint.h>
 
-const KeyWordPair KEYWORDS[6] = {
+const KeyWordPair KEYWORDS[8] = {
     {"press",PRESS},
     {"PRESS",PRESS},
     {"hold",HOLD},
     {"HOLD",HOLD},
     {"release",RELEASE},
-    {"RELEASE",RELEASE},    	
+    {"RELEASE",RELEASE},
+    {"delay",DELAY},
+    {"DELAY",DELAY},
 };
 
 #define NO_MODIFIER 0b00000000

@@ -1,4 +1,3 @@
-#ifdef TEST
 #include "parser.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -18,7 +17,7 @@ void print_usb_command(UsbCommand *cmd) {
     
     for (int i = 0; i < 8; i++) {
         // %02X prints hex with leading zeros (e.g., 0A instead of A)
-        printf("%02X ", cmd->value[i]);
+        printf("%02X ", cmd->value.keys[i]);
     }
     
     printf("\n-------------------------------\n");
@@ -344,7 +343,7 @@ int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_
             break;
         }
 
-        if( memcmp(cmd->value,test_cmd->value,sizeof(test_cmd->value)) != 0  ) {
+        if( memcmp(cmd->value.keys,test_cmd->value.keys,sizeof(test_cmd->value.keys)) != 0  ) {
             cmds_match = 0;
             uint8_t* keys = &test_cmd->value[2];
             printf("expect kb input %d %u %u %u %u %u %u\n",test_cmd->value[1],keys[0],keys[1],keys[2],keys[3],keys[4],keys[5]);
@@ -418,4 +417,3 @@ int main(){
     }
 
 }
-#endif
