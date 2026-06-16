@@ -14,8 +14,8 @@ typedef enum USB_COMMAND {
 	HOLD, // Hold a button
 	RELEASE,// Release a button that is held
 	RESTART, // When put at the end, program gets run again after finished, good for commands that need to be sent repeatedly 
-	DELAY,
 	UNSUPPORTED,
+	DELAY,
 }USB_COMMAND;
 
 typedef struct KeyWordPair {
@@ -24,20 +24,8 @@ typedef struct KeyWordPair {
 }KeyWordPair;
 
 typedef struct {
-    // keys is an array where each bit represents a given index in the DUCK_KEYS array
     unsigned char keys[6];
 }KeysContext;
-void set_key_index(KeysContext* ktx,unsigned char held, size_t index);
-/*
-STATE Machine
-	EXPECT_KEYWORD -> expects next token to be whitespace or a keyword like press PRESS hold HOLD etc
-	EXPECT_DATA -> expects next Token to be any of the DUCK_KEYS
-	EXPECT_COMMA_COLON -> expects next token to be SEMICOLON or COMMA
-	
-	KEYWORD_FOUND_ERR -> next Token was not found in DUCK_KEYS
-	DUCK_KEY_ERR -> next token was not SEMICOLON or COMMA
-	COMMA_COLON_MISSING -> expected Comma or Semicolon
-*/
 
 typedef enum PARSING_STATE {
 	EXPECT_KEYWORD,
@@ -50,14 +38,23 @@ typedef enum PARSING_STATE {
 	LINE_TOO_LONG,
 	NO_REFERENCE_FOUND,
 	DONE,
-	DONE_PRESS, // Generate a cmd filled with KeysContext
 }PARSING_STATE;
+
+typedef union USB_COMMAND_VALUE {
+	unsigned char keys[8];
+	unsigned int delay;
+}USB_COMMAND_VALUE;
+
+typedef enum USB_COMMAND_VALUE_TYPE {
+	KEYBOARD,
+	WAIT,
+}USB_COMMAND_VALUE_TYPE;
 
 typedef struct UsbCommand {
 	USB_COMMAND command;
-	unsigned char value[8];
+	USB_COMMAND_VALUE value;
+	USB_COMMAND_VALUE_TYPE type;
 }UsbCommand;
-
 
 typedef struct __attribute__((packed)) {
     const char* key;
@@ -65,8 +62,8 @@ typedef struct __attribute__((packed)) {
 } KeyPair;
 
 extern const KeyPair DUCK_KEYS[170];
-extern const KeyWordPair KEYWORDS[6];
-extern PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index,PARSING_STATE previous_state);
+extern const KeyWordPair KEYWORDS[8];
+extern PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index);
 extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len,KeysContext* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len);
-
+extern void set_key_index(KeysContext* ktx,unsigned char held, size_t index);
 #endif
