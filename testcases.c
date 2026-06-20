@@ -9,17 +9,13 @@ void print_usb_command(UsbCommand *cmd) {
         printf("UsbCommand is NULL\n");
         return;
     }
-
     printf("UsbCommand Table:\n");
     printf("-------------------------------\n");
     printf("Command: %d\n", cmd->command);
     printf("Values (Hex): ");
-    
     for (int i = 0; i < 8; i++) {
-        // %02X prints hex with leading zeros (e.g., 0A instead of A)
         printf("%02X ", cmd->value.keys[i]);
     }
-    
     printf("\n-------------------------------\n");
 }
 
