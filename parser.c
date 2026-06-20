@@ -11,7 +11,7 @@
 // CTRL,SHIFT ...
 #define KEY_MOD_INDEX 1
 // This defines the count of UsbCommands allocated in parse_all_alloc
-#define PREALLOC_AMOUNT 128
+#define PREALLOC_AMOUNT 256
 // 32 Keys being able to be held is probably a sane Default, who in their right
 // mind wants to hold 170 keys? If you want you can obviously change it anyways
 #define MAX_KEYS_HELD 32
@@ -69,9 +69,6 @@ PARSING_STATE handle_keyword(const char *input, size_t *index,
     if (res == 0) {
       cmd->command = KEYWORDS[j].cmd;
       state = EXPECT_DATA;
-#ifdef DEBUG
-      printf("FOUND KEYWORD %d\n", cmd->command);
-#endif
       (*index) += len;
       break;
     }
@@ -178,78 +175,93 @@ PARSING_STATE handle_delay(const char *input,unsigned short input_len, size_t *i
 
 
 PARSING_STATE parse_line(const char *input, unsigned short input_len,
-                         KeysContext *kctx, UsbCommand *cmd, size_t *index) {
+                         KeysContext *kctx, ParseResult * result, size_t *index) {
   PARSING_STATE state = EXPECT_KEYWORD;
   size_t keys_index = KEYS_START;
   size_t done_at = 0;
+  uint8_t return_found = 0;
+  result->count=0;
+  fill_usb_command(&result->cmds[0]);
+  fill_usb_command(&result->cmds[1]);
+  UsbCommand* cmd = &result->cmds[0];
+
   if (cmd == NULL) {
     return NO_REFERENCE_FOUND;
   }
-  fill_usb_command(cmd);
+
   while ((*index) < input_len) {
     if (input[(*index)] == ' ') {
       (*index)++;
       continue;
     }
-#ifdef DEBUG
-    printf("input[i]: %c\n", input[(*index)]);
-#endif
-
-    if (state == EXPECT_KEYWORD) {
+    
+    //printf("%c \n",input[*index]);
+    
+    switch (state) {
+    case EXPECT_KEYWORD:
       state = handle_keyword(input, index, cmd);
       if (state != EXPECT_DATA) {
         state = KEYWORD_FOUND_ERR;
         return state;
-      } else {
-        continue;
       }
-    } else if (state == EXPECT_DATA) {
+
+      break;
+    case EXPECT_DATA:
       if (cmd->command == DELAY) {
         state = handle_delay(input, input_len, index, cmd);
-      }else{
+      }else if(cmd->command == PRESS){
+        UsbCommand* cmd2 = &result->cmds[1];
+        result->count = 2;
+        memcpy(&result->cmds[1].value.keys[2],kctx->keys,sizeof(uint8_t) * 6);
+        state = handle_data(input, input_len, kctx, cmd, index, &keys_index);
+      }
+      else{
         state = handle_data(input, input_len, kctx, cmd, index, &keys_index);
       }
       if (state != EXPECT_COMMA_COLON) {
         state = DUCK_KEY_ERR;
         return state;
-      } else {
-        continue;
       }
-    } else if (state == EXPECT_COMMA_COLON) {
+      break;
+    case EXPECT_COMMA_COLON:
       if (input[(*index)] == ',') {
-#ifdef DEBUG
-        printf("FOUND Comma\n");
-#endif
+        (*index)++;
         state = EXPECT_DATA;
+      } else if (input[(*index)] == ';') {        
         (*index)++;
-      } else if (input[(*index)] == ';') {
-        state = DONE;
-        (*index)++;
+        state = (*index) >= input_len ? DONE : EXPECT_POSSIBLE_NEWLINE;
         done_at = (*index);
       } else {
-#ifdef DEBUG
-        printf("COMMA IS MISSING\n");
-#endif
         state = COMMA_COLON_MISSING;
         return state;
       }
-    } else {
-      uint8_t return_found = input[(*index)] == '\r';
+      break;
+    case EXPECT_POSSIBLE_NEWLINE:
+      return_found = input[(*index)] == '\r';
       // Check for CRLF
       if ((*index + 2) < input_len && return_found &&
           input[(*index) + 1] == '\n') {
         (*index) += 2;
-        return state;
+        return DONE;
       }
       // Check for LF or CR
       else if ((input[(*index)] == '\n') || return_found) {
         (*index)++;
-        return state;
+        return DONE;
       } else {
         (*index) = done_at;
-        return state;
+        return DONE;
       }
+      break;
+    case KEYWORD_FOUND_ERR:break;
+    case DUCK_KEY_ERR:break;
+    case COMMA_COLON_MISSING:break;
+    case LINE_TOO_LONG:break;
+    case NO_REFERENCE_FOUND:break;
+    case DONE:break;
+    case DONE_PRESS:break;
     }
+
   }
   return state;
 }
@@ -262,16 +274,15 @@ PARSING_STATE parse_all_alloc(const char *input, size_t input_len,
   (*cmd_list_len) = 0;
   UsbCommand *cmd_list_ptr = (*cmd_list);
   PARSING_STATE state = DONE;
+  ParseResult result;
   while (index < input_len) {
-#ifdef DEBUG
-    printf("STARTED PARSING LINE \n");
-#endif
-    state = parse_line(input, input_len, ctx, &cmd_list_ptr[(*cmd_list_len)],
-                       &index);
-#ifdef DEBUG
-    printf("ENDED PARSING LINE \n");
-#endif
+    state = parse_line(input, input_len, ctx,&result,&index);
+    cmd_list_ptr[(*cmd_list_len)] = result.cmds[0];
     if (state == DONE) {
+      if(result.count == 2) {
+        (*cmd_list_len)++;
+        cmd_list_ptr[(*cmd_list_len)] = result.cmds[1];
+      }
       (*cmd_list_len)++;
     } else {
       break;

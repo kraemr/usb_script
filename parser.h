@@ -2,6 +2,7 @@
 #define PARSER_H
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,7 @@ typedef enum PARSING_STATE {
 	LINE_TOO_LONG,
 	NO_REFERENCE_FOUND,
 	DONE,
+	DONE_PRESS,
 }PARSING_STATE;
 
 typedef union USB_COMMAND_VALUE {
@@ -61,9 +63,16 @@ typedef struct __attribute__((packed)) {
     unsigned char val;
 } KeyPair;
 
+
+typedef struct ParseResult {
+  uint8_t count;
+  UsbCommand cmds[2];
+}ParseResult;
+
 extern const KeyPair DUCK_KEYS[170];
 extern const KeyWordPair KEYWORDS[8];
-extern PARSING_STATE parse_line(const char* input,unsigned short input_len,KeysContext* kctx,UsbCommand* cmd, size_t* index);
 extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len,KeysContext* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len);
+PARSING_STATE parse_line(const char *input, unsigned short input_len,
+                         KeysContext *kctx, ParseResult * result, size_t *index);
 extern void set_key_index(KeysContext* ktx,unsigned char held, size_t index);
 #endif
