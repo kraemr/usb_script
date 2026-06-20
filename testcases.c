@@ -1,6 +1,7 @@
 #include "parser.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 const char * SUCCESS = "passed";
 const char * FAILURE = "failure";
 
@@ -45,12 +46,13 @@ const TestCase testcases[] = {
         "testcase_normal_keypress",
         "press 0,1,2,3,4,5;",
         {
-            {PRESS,1,0,0x27,0x1E,0x1F,0x20,0x21,0x22,KEYBOARD}
+            {PRESS,1,0,0x27,0x1E,0x1F,0x20,0x21,0x22,KEYBOARD},
+            {PRESS,1,0,0,0,0,0,0,0,KEYBOARD}
         },
         {
             {0,0,0,0,0,0}
         },
-        1,
+        2,
         DONE,
     },
     {
@@ -326,11 +328,12 @@ int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_
     for(int i = 0; i < cmds_count;i++) {
         UsbCommand* test_cmd = &testcase->expected_commands[i];
         UsbCommand* cmd = &cmds[i];
+            printf("%x %x %x %x %x %x \n",cmd->value.keys[0],cmd->value.keys[1],cmd->value.keys[2],cmd->value.keys[3],cmd->value.keys[4],cmd->value.keys[5]);
         if (cmd->command != test_cmd->command) {
             cmds_match = 0;
+            printf("%d \n",cmd->command);
             break;
         }
-
         if( memcmp(cmd->value.keys,test_cmd->value.keys,sizeof(test_cmd->value.keys)) != 0  ) {
             cmds_match = 0;
             break;
@@ -360,7 +363,7 @@ int main(){
         PARSING_STATE state =  parse_all_alloc(test.str,strlen(test.str),&ctx,&cmds,&cmds_count);                 
         int test_result = check_test_passes(&test,cmds,&ctx,cmds_count,state);
         const char* result_str = test_result ? SUCCESS : FAILURE;
-        printf("Testcase %s %s\n",test.name,result_str);
+        printf("Testcase %s %s %d\n",test.name,result_str, state);
         free(cmds);        
     }    
 }
