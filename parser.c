@@ -163,7 +163,7 @@ PARSING_STATE handle_delay(const char *input,unsigned short input_len, size_t *i
     if(success) {
         const char* ptr = (const char*)&num_str[0];
         int value = strtoul(ptr,NULL,10);
-        printf("%d\n", value );
+        printf("Delay ms %d\n", value );
         cmd->command     =  DELAY;
         cmd->type        =  WAIT;
         cmd->value.delay =  value;
