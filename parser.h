@@ -1,6 +1,5 @@
 #ifndef PARSER_H
 #define PARSER_H
-
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -17,6 +16,8 @@ typedef enum USB_COMMAND {
 	RESTART, // When put at the end, program gets run again after finished, good for commands that need to be sent repeatedly 
 	UNSUPPORTED,
 	DELAY,
+	MOUSE_ABSOLUTE_MOVE,
+	MOUSE_RELATIVE_MOVE,
 }USB_COMMAND;
 
 typedef struct KeyWordPair {
@@ -26,7 +27,13 @@ typedef struct KeyWordPair {
 
 typedef struct {
     unsigned char keys[6];
-}KeysContext;
+    uint8_t mouse_buttons;
+    uint8_t vertical_scroll;
+    uint8_t horizontal_scroll;
+    int16_t mouse_x_abs;
+    int16_t mouse_y_abs;
+}UsbState;
+
 
 typedef enum PARSING_STATE {
 	EXPECT_KEYWORD,
@@ -42,14 +49,35 @@ typedef enum PARSING_STATE {
 	DONE_PRESS,
 }PARSING_STATE;
 
+typedef struct {
+	uint8_t buttons;
+	int16_t x;
+	int16_t y;
+	int8_t vertical_scroll;
+	int8_t horizontal_scroll;
+}MOUSE_ABS_MOVE_CMD;
+
+typedef struct {
+	uint8_t buttons;
+	int8_t delta_x;
+	int8_t delta_y;
+	int8_t vertical_scroll;
+	int8_t horizontal_scroll;
+}MOUSE_REL_MOVE_CMD;
+
+
 typedef union USB_COMMAND_VALUE {
-	unsigned char keys[8];
-	unsigned int delay;
+	uint8_t keys[7];
+	uint32_t delay;
+	MOUSE_ABS_MOVE_CMD mouse_abs_cmd;
+	MOUSE_REL_MOVE_CMD mouse_rel_cmd;
 }USB_COMMAND_VALUE;
 
 typedef enum USB_COMMAND_VALUE_TYPE {
 	KEYBOARD,
 	WAIT,
+	MOUSE_ABS_MOVE,
+	MOUSE_REL_MOVE,
 }USB_COMMAND_VALUE_TYPE;
 
 typedef struct UsbCommand {
@@ -60,9 +88,8 @@ typedef struct UsbCommand {
 
 typedef struct __attribute__((packed)) {
     const char* key;
-    unsigned char val;
+    uint8_t val;
 } KeyPair;
-
 
 typedef struct ParseResult {
   uint8_t count;
@@ -70,9 +97,10 @@ typedef struct ParseResult {
 }ParseResult;
 
 extern const KeyPair DUCK_KEYS[170];
-extern const KeyWordPair KEYWORDS[8];
-extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len,KeysContext* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len);
+extern const KeyPair MOUSE_CMDS[6];
+extern const KeyWordPair KEYWORDS[12];
+extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len,UsbState* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len);
 PARSING_STATE parse_line(const char *input, unsigned short input_len,
-                         KeysContext *kctx, ParseResult * result, size_t *index);
-extern void set_key_index(KeysContext* ktx,unsigned char held, size_t index);
+                         UsbState *kctx, ParseResult * result, size_t *index);
+extern void set_key_index(UsbState* ktx,unsigned char held, size_t index);
 #endif

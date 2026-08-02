@@ -1,7 +1,7 @@
 #include "parser.h"
 #include <stdint.h>
 
-const KeyWordPair KEYWORDS[8] = {
+const KeyWordPair KEYWORDS[12] = {
     {"press",PRESS},
     {"PRESS",PRESS},
     {"hold",HOLD},
@@ -10,6 +10,11 @@ const KeyWordPair KEYWORDS[8] = {
     {"RELEASE",RELEASE},
     {"delay",DELAY},
     {"DELAY",DELAY},
+    {"MOVE_REL_MOUSE",MOUSE_RELATIVE_MOVE},
+    {"MOVE_ABS_MOUSE",MOUSE_ABSOLUTE_MOVE},
+    {"move_rel_mouse",MOUSE_RELATIVE_MOVE},
+    {"move_abs_mouse",MOUSE_ABSOLUTE_MOVE},
+
 };
 
 #define NO_MODIFIER 0b00000000
@@ -19,8 +24,17 @@ const KeyWordPair KEYWORDS[8] = {
 #define L_SUPER     0b00001000
 #define R_CTRL      0b00010000
 #define R_SHIFT     0b00100000
-#define R_ALT       0b01000000 
+#define R_ALT       0b01000000
 #define R_SUPER     0b10000000
+
+const KeyPair MOUSE_CMDS[6] = {
+    {"MOUSE_LEFT",      0x1}, // bit 1 of mouse uint8_t buttons
+    {"MOUSE_RIGHT",     0x2}, // bit 2 ~
+    {"MOUSE_MIDDLE",    0x4}, // bit 3 ~
+    {"mouse_left",      0x1},
+    {"mouse_right",     0x2},
+    {"mouse_middle",    0x4}
+};
 
 const KeyPair DUCK_KEYS[170] = {
     // Numbers

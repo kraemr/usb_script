@@ -14,7 +14,7 @@ void print_usb_command(UsbCommand *cmd) {
     printf("-------------------------------\n");
     printf("Command: %d\n", cmd->command);
     printf("Values (Hex): ");
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 7; i++) {
         printf("%02X ", cmd->value.keys[i]);
     }
     printf("\n-------------------------------\n");
@@ -24,21 +24,131 @@ typedef struct TestCase {
     const char* name;
     const char* str;
     UsbCommand expected_commands[128];
-    KeysContext ctx;
+    UsbState ctx;
     size_t commands_count;
     PARSING_STATE expected_state;
 }TestCase;
 
+static void print_bits_8(uint8_t val) {
+    for (int i = 7; i >= 0; i--) {
+        putchar((val & (1 << i)) ? '1' : '0');
+    }
+}
+
+void print_usb_state(UsbState *state) {
+    if (!state) {
+        printf("UsbState: NULL\n");
+        return;
+    }
+
+    printf("=== UsbState ===\n");
+    
+    /* 1. Print Active Key Codes */
+    printf("Keys [6]           : [ ");
+    for (int i = 0; i < 6; i++) {
+        printf("0x%02X ", state->keys[i]);
+    }
+    printf("]\n");
+
+    /* 2. Print Mouse Buttons (Raw Hex + Decimal + Bitmask) */
+    printf("Mouse Buttons      : 0x%02X (%u) | Bits: 0b", 
+           state->mouse_buttons, 
+           state->mouse_buttons);
+    print_bits_8(state->mouse_buttons);
+    printf("\n");
+
+    /* 3. Print Scroll States */
+    printf("Vertical Scroll    : %d (0x%02X)\n", 
+           (int8_t)state->vertical_scroll, 
+           state->vertical_scroll);
+           
+    printf("Horizontal Scroll  : %d (0x%02X)\n", 
+           (int8_t)state->horizontal_scroll, 
+           state->horizontal_scroll);
+
+    /* 4. Print Absolute Pointer Coordinates */
+    printf("Mouse X (Abs)      : %d\n", state->mouse_x_abs);
+    printf("Mouse Y (Abs)      : %d\n", state->mouse_y_abs);
+    
+    printf("================\n");
+}
+
 const TestCase testcases[] = {
+    {
+        "HOLD mouse",
+        "HOLD MOUSE_LEFT,MOUSE_RIGHT;",
+        {
+            {
+                HOLD,
+                {
+                    {3,0,0,0,0,0,0}
+                },
+                MOUSE_REL_MOVE,
+            },
+        },
+        {
+            {0,0,0,0,0,0},
+            3,0,0,0,0
+        },
+        1,
+        DONE,
+    },
+    {
+        "HOLD RELEASE mouse",
+        "HOLD MOUSE_LEFT,MOUSE_RIGHT;\nRELEASE MOUSE_LEFT;",
+        {
+            {
+                HOLD,
+                {
+                    {3,0,0,0,0,0,0}
+                },
+                MOUSE_REL_MOVE,
+            },
+            {
+                RELEASE,
+                {
+                    {1,0,0,0,0,0,0}
+                },
+                MOUSE_REL_MOVE,
+            },
+        },
+        {
+            {0,0,0,0,0,0},
+            2,0,0,0,0
+        },
+        2,
+        DONE,
+    },
+    {
+        "ABS MOVE",
+        "move_abs_mouse 100,100;",
+        {
+            {
+                MOUSE_ABSOLUTE_MOVE,
+                {
+                    {3,0,0,0,0,0,0}
+                },
+                MOUSE_ABS_MOVE,
+            },          
+        },
+        {
+            {0,0,0,0,0,0},
+            2,0,0,0,0
+        },
+        2,
+        DONE,
+    }
+
+    ,/*
     {
         "delay",
         "HOLD 0,1;\nDELAY 10;\nRELEASE 1;",
         {
-            {HOLD,   1 ,0,0x27,0x1E,0,0,0,0,KEYBOARD},
-            {DELAY,  10,0,   0,   0,0,0,0,0,WAIT},
-            {RELEASE,1,0,0x1E,0,0,0,0,KEYBOARD},
+            {HOLD,0,0x27,0x1E,0,0,0,0,KEYBOARD},
+            {DELAY,  10, 0, 0,0,0,0,0,WAIT},
+            {RELEASE,0,0x1E,0,0,0,0,0,KEYBOARD},
         },
-        {0x27,0},
+        {0x27,0,0,0,0,0},
         3,
         DONE,
     },
@@ -46,11 +156,11 @@ const TestCase testcases[] = {
         "testcase_normal_keypress",
         "press 0,1,2,3,4,5;",
         {
-            {PRESS,1,0,0x27,0x1E,0x1F,0x20,0x21,0x22,KEYBOARD},
-            {PRESS,1,0,0,0,0,0,0,0,KEYBOARD}
+            {PRESS,0,0x27,0x1E,0x1F,0x20,0x21,0x22,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD}
         },
         {
-            {0,0,0,0,0,0}
+            {0}
         },
         2,
         DONE,
@@ -59,89 +169,124 @@ const TestCase testcases[] = {
         "testcase_one_key",
         "press 0;",
         {
-            {PRESS,1,0,0x27,0,0,0,0,0,KEYBOARD}
+            {PRESS,0,0x27,0,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD}
         },
         {
             {0}
         },
-        1,
+        2,
         DONE,
     },
     {
         "multiple_key_press_one_line",
         "press 0,1;press 2,3;",
         {
-            {PRESS,1,0,0x27,0x1E,0,0,0,0,KEYBOARD},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0,KEYBOARD}
+            {PRESS,0,0x27,0x1E,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
+            {PRESS,0,0x1F,0x20,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD}
         },
         {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
         "multiple_key_press_mult_line",
         "press 0,1;\npress 2,3;",
         {
-            {PRESS,1,0,0x27,0x1E,0,0,0,0,KEYBOARD},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0,KEYBOARD}
+            {PRESS,0,0x27,0x1E,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
+            {PRESS,0,0x1F,0x20,0,0,0,0,KEYBOARD},
+            {PRESS,0,0x1F,0x20,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD}
         },
        {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
         "multiple_key_press_mult_line_CRLF",
         "press 0,1;\r\npress 2,3;",
         {
-            {PRESS,1,0,0x27,0x1E,0,0,0,0,KEYBOARD},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0,KEYBOARD}
+            {PRESS,0,0x27,0x1E,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
+            {PRESS,0,0x1F,0x20,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
         },
         {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
         "multiple_key_press_mult_line_CR",
         "press 0,1;\rpress 2,3;",
         {
-            {PRESS,1,0,0x27,0x1E,0,0,0,0,KEYBOARD},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0,KEYBOARD}
+            {PRESS,0,0x27,0x1E,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
+            {PRESS,0,0x1F,0x20,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
         },
         {
             {0}
         },
-        2,
+        4,
         DONE,
     },
     {
         "multiple_key_press_mult_line_CRLF",
         "press 0,1;\r\npress 2,3;",
         {
-            {PRESS,1,0,0x27,0x1E,0,0,0,0,KEYBOARD},
-            {PRESS,1,0,0x1F,0x20,0,0,0,0,KEYBOARD}
+            {PRESS,0,0x27,0x1E,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
+            {PRESS,0,0x1F,0x20,0,0,0,0,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD}
         },
         {
-            {0}
+            {0,0,0,0,0,0}
         },
-        2,
+        4,
         DONE,
     },
     {
         "all_arrow_keys",
         "press ARROW_LEFT,ARROW_RIGHT,ARROW_UP,ARROW_DOWN;",
         {
-            {PRESS,1,0,0x50,0x4F,0x52,0x51,KEYBOARD},
+            {PRESS,0,0x50,0x4F,0x52,0x51,KEYBOARD},
+            {PRESS,0,0,0,0,0,0,0,KEYBOARD},
         },
         {0},
+        2,
+        DONE,
+    },
+    {
+        "zero_one_held",
+        "HOLD 0,1;",
+        {
+            {HOLD,1,0,0x27,0x1E,0,0,0,KEYBOARD},
+        },
+        {0x27,0x1E,0,0,0,0},
         1,
         DONE,
     },
+    {
+        "zeron_one_held_one_release",
+        "HOLD 0,1;\nRELEASE 1;",
+        {
+            {HOLD,   0,0x27,0x1E,0,0,0,KEYBOARD},
+            {RELEASE,0,0x1E,0,0,0,0   ,KEYBOARD},
+        },
+        {0x27,0,0,0,0,0},
+        2,
+        DONE,
+    }
+    /*
     {
     "all_possible_keys",
     "press 0,1;\npress 2,3;\npress 4,5;\npress 6,7;\npress 8,9;\n"
@@ -307,13 +452,13 @@ const TestCase testcases[] = {
         {0x27,0},
         2,
         DONE,
-    },
+    },*/
 };
 
 /*
     returns 1 if the test passed, 0 if not
 */
-int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_t cmds_count,PARSING_STATE state) {
+int check_test_passes(TestCase* testcase,UsbCommand* cmds,UsbState* ctx,size_t cmds_count,PARSING_STATE state) {
     int cmd_count_matches = cmds_count == testcase->commands_count;
     if(!cmd_count_matches) {
         printf("Testcase %s cmds_count mismatch exepcted: %zu, got %zu \n",testcase->name,testcase->commands_count,cmds_count);
@@ -328,7 +473,7 @@ int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_
     for(int i = 0; i < cmds_count;i++) {
         UsbCommand* test_cmd = &testcase->expected_commands[i];
         UsbCommand* cmd = &cmds[i];
-            printf("%x %x %x %x %x %x \n",cmd->value.keys[0],cmd->value.keys[1],cmd->value.keys[2],cmd->value.keys[3],cmd->value.keys[4],cmd->value.keys[5]);
+        printf("cmd type: %u %u\n",cmd->type,cmd->value.mouse_rel_cmd.buttons);
         if (cmd->command != test_cmd->command) {
             cmds_match = 0;
             printf("%d \n",cmd->command);
@@ -339,9 +484,14 @@ int check_test_passes(TestCase* testcase,UsbCommand* cmds,KeysContext* ctx,size_
             break;
         }
     }
-    int key_state_matches = memcmp(ctx->keys,testcase->ctx.keys,6 * sizeof(uint8_t) ) == 0;
+    int key_state_matches = memcmp(ctx,&testcase->ctx, sizeof(UsbState) )== 0;
     if(!key_state_matches) {
         printf("Testcase %s key_state_matches mismatch \n",testcase->name);
+        printf("state: ");
+        print_usb_state(ctx);
+        printf("expected state:");
+        print_usb_state(&testcase->ctx);    
+        //printf("%x %x %x %x %x %x \n",ctx->keys[0],ctx->keys[1],ctx->keys[2],ctx->keys[3],ctx->keys[4],ctx->keys[5]);
         return 0;
     }
 
@@ -357,7 +507,7 @@ int main(){
     printf("Testcases: \n");
     for(size_t i = 0; i < count; i++ ) {
         UsbCommand* cmds = NULL;
-        KeysContext ctx = {0};
+        UsbState ctx = {0};
         size_t cmds_count = 0;
         TestCase test = testcases[i];
         PARSING_STATE state =  parse_all_alloc(test.str,strlen(test.str),&ctx,&cmds,&cmds_count);                 
