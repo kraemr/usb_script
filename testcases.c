@@ -73,13 +73,34 @@ void print_usb_state(UsbState *state) {
     printf("================\n");
 }
 
+const TestCase hold_mouse_left_right = 
+{
+    .commands_count = 1,
+    .ctx = {
+        .keys = {0,0,0,0,0,0},
+        .horizontal_scroll = 0,
+        .vertical_scroll = 0,
+        .mouse_x_abs = 0,
+        .mouse_y_abs = 0,
+        .mouse_buttons =0,
+    },
+    .expected_commands = {
+        {
+            {
+                
+            }
+        }
+        
+    },
+}
+
 const TestCase testcases[] = {
     {
         "HOLD mouse",
         "HOLD MOUSE_LEFT,MOUSE_RIGHT;",
         {
             {
-                HOLD,
+                MOUSE_HOLD,
                 {
                     {3,0,0,0,0,0,0}
                 },
@@ -98,18 +119,18 @@ const TestCase testcases[] = {
         "HOLD MOUSE_LEFT,MOUSE_RIGHT;\nRELEASE MOUSE_LEFT;",
         {
             {
-                HOLD,
+                MOUSE_HOLD,
                 {
                     {3,0,0,0,0,0,0}
                 },
-                MOUSE_REL_MOVE,
+                MOUSE_BUTTONS,
             },
             {
-                RELEASE,
+                MOUSE_RELEASE,
                 {
                     {1,0,0,0,0,0,0}
                 },
-                MOUSE_REL_MOVE,
+                MOUSE_BUTTONS,
             },
         },
         {

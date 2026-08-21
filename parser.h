@@ -1,5 +1,6 @@
 #ifndef PARSER_H
 #define PARSER_H
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -10,9 +11,15 @@
 typedef enum USB_COMMAND {
 	SET_LANG,
 	SWITCH_HID_MODE, // Switches Hid mode from keyboard to controller for example
-	PRESS, // Press a button and instantly release it after
-	HOLD, // Hold a button
-	RELEASE,// Release a button that is held
+	
+	MOUSE_PRESS,
+	MOUSE_HOLD,
+	MOUSE_RELEASE,
+
+	KB_PRESS,
+	KB_HOLD,
+	KB_RELEASE,
+
 	RESTART, // When put at the end, program gets run again after finished, good for commands that need to be sent repeatedly 
 	UNSUPPORTED,
 	DELAY,
@@ -30,6 +37,8 @@ typedef struct {
     uint8_t mouse_buttons;
     uint8_t vertical_scroll;
     uint8_t horizontal_scroll;
+
+    // DO NOT change order of mouse_x and mouse_y here!!
     int16_t mouse_x_abs;
     int16_t mouse_y_abs;
 }UsbState;
@@ -65,10 +74,14 @@ typedef struct {
 	int8_t horizontal_scroll;
 }MOUSE_REL_MOVE_CMD;
 
+typedef struct USB_COMMAND_KEYBOARD {
+	uint8_t modifier;
+	uint8_t keys[6];
+}USB_COMMAND_KEYBOARD;
 
 typedef union USB_COMMAND_VALUE {
-	uint8_t keys[7];
 	uint32_t delay;
+	USB_COMMAND_KEYBOARD keyboard_cmd;
 	MOUSE_ABS_MOVE_CMD mouse_abs_cmd;
 	MOUSE_REL_MOVE_CMD mouse_rel_cmd;
 }USB_COMMAND_VALUE;
@@ -78,6 +91,7 @@ typedef enum USB_COMMAND_VALUE_TYPE {
 	WAIT,
 	MOUSE_ABS_MOVE,
 	MOUSE_REL_MOVE,
+	MOUSE_BUTTONS,
 }USB_COMMAND_VALUE_TYPE;
 
 typedef struct UsbCommand {
@@ -98,7 +112,7 @@ typedef struct ParseResult {
 
 extern const KeyPair DUCK_KEYS[170];
 extern const KeyPair MOUSE_CMDS[6];
-extern const KeyWordPair KEYWORDS[12];
+extern const KeyWordPair KEYWORDS[9];
 extern PARSING_STATE parse_all_alloc(const char* input, size_t input_len,UsbState* ctx ,UsbCommand** cmd_list, size_t* cmd_list_len);
 PARSING_STATE parse_line(const char *input, unsigned short input_len,
                          UsbState *kctx, ParseResult * result, size_t *index);

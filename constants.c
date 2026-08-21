@@ -1,20 +1,16 @@
 #include "parser.h"
 #include <stdint.h>
 
-const KeyWordPair KEYWORDS[12] = {
-    {"press",PRESS},
-    {"PRESS",PRESS},
-    {"hold",HOLD},
-    {"HOLD",HOLD},
-    {"release",RELEASE},
-    {"RELEASE",RELEASE},
+const KeyWordPair KEYWORDS[9] = {
     {"delay",DELAY},
-    {"DELAY",DELAY},
-    {"MOVE_REL_MOUSE",MOUSE_RELATIVE_MOVE},
-    {"MOVE_ABS_MOUSE",MOUSE_ABSOLUTE_MOVE},
-    {"move_rel_mouse",MOUSE_RELATIVE_MOVE},
-    {"move_abs_mouse",MOUSE_ABSOLUTE_MOVE},
-
+    {"press",KB_PRESS},    
+    {"hold",KB_HOLD},
+    {"release",KB_RELEASE},   
+    {"mouse_press",MOUSE_PRESS},    
+    {"mouse_hold",MOUSE_HOLD},
+    {"mouse_release",MOUSE_RELEASE},
+    {"move_rel",MOUSE_RELATIVE_MOVE},
+    {"move_abs",MOUSE_ABSOLUTE_MOVE},
 };
 
 #define NO_MODIFIER 0b00000000
