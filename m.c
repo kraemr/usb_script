@@ -83,24 +83,30 @@ void print_usb_state(UsbState *state) {
 }
 
 int main(int argc, char* argv[]) {
-	UsbState state = {0};
-	ParseResult result;
-	size_t index = 0;
-	PARSING_STATE parser_state = parse_line(argv[1], strlen(argv[1]), &state, &result, &index);
-	printf("state: %u \n", parser_state );
-
-	if(result.cmds->type == KEYBOARD) {
-		for(int i = 0; i < result.count; i++) {
-			print_kb_usb_command(&result.cmds[i]);
-		}
-	}else if(result.cmds->type == MOUSE_REL_MOVE) {
-		for(int i = 0; i < result.count; i++) {
-			print_m_rel_usb_command(&result.cmds[i]);
-		}
-	}else if(result.cmds->type == MOUSE_ABS_MOVE){
-        for(int i = 0; i < result.count; i++) {
-            print_m_abs_usb_command(&result.cmds[i]);
-        }
+    int i = 4;
+    size_t index = 0;
+    UsbState state = {0};
+    
+    while(1) {    
+        ParseResult result = {0};
+        PARSING_STATE parser_state = parse_line(argv[1], strlen(argv[1]), &state, &result, &index);
+        printf("state: %u \n", parser_state );
+        if(result.cmds->type == KEYBOARD) {
+            for(int i = 0; i < result.count; i++) {
+                print_kb_usb_command(&result.cmds[i]);
+            }
+        }else if(result.cmds->type == MOUSE_REL_MOVE || result.cmds->type == MOUSE_BUTTONS) {
+            for(int i = 0; i < result.count; i++) {
+                print_m_rel_usb_command(&result.cmds[i]);
+            }
+        }else if(result.cmds->type == MOUSE_ABS_MOVE){
+            for(int i = 0; i < result.count; i++) {
+                print_m_abs_usb_command(&result.cmds[i]);
+            }
+        }   
+        print_usb_state(&state);
+        if (parser_state != DONE) break;
     }
-	print_usb_state(&state);
+
+	
 }

@@ -186,8 +186,8 @@ PARSING_STATE handle_mouse_buttons(const char *input, unsigned short input_len,
   const int MOUSE_CMD_COUNT = (sizeof(MOUSE_CMDS) / sizeof(KeyPair));
   int i = find_data_start(&input[(*index)],input_len,index);
   UsbCommand* cmd = &result->cmds[0];
+  
   cmd->type = MOUSE_BUTTONS;
-  cmd->command = MOUSE_RELATIVE_MOVE;
   for (size_t j = 0; j < MOUSE_CMD_COUNT; j++) {
     size_t len = strlen(MOUSE_CMDS[j].key);   
     if (((*index) + len) > input_len) {
@@ -206,7 +206,7 @@ PARSING_STATE handle_mouse_buttons(const char *input, unsigned short input_len,
       clear_mouse_button(kctx, MOUSE_CMDS[j].val);
       cmd->value.mouse_rel_cmd.buttons &= ~MOUSE_CMDS[j].val;
       state = EXPECT_COMMA_COLON;
-    result->count = 1;
+      result->count = 1;
       (*index) += len;
     }else if(matches){
       cmd->value.mouse_rel_cmd.buttons |= MOUSE_CMDS[j].val;
@@ -217,6 +217,7 @@ PARSING_STATE handle_mouse_buttons(const char *input, unsigned short input_len,
       (*index) += len;
     }
   }
+
   return state;
 }
 
@@ -271,7 +272,11 @@ PARSING_STATE handle_rel_mouse_move(const char *input,unsigned short input_len,U
     result->cmds[0].value.mouse_rel_cmd.horizontal_scroll = kctx->horizontal_scroll;
     result->cmds[0].value.mouse_rel_cmd.vertical_scroll = kctx->vertical_scroll;
   }
-  
+
+  do {
+    (*index)+=1;  
+  }while(  input[(*index)] != ';');
+  printf("%s \n", &input[(*index)]);   
   result->count = 1;
   state = EXPECT_COMMA_COLON;
   return state;
@@ -344,71 +349,6 @@ PARSING_STATE handle_data(const char *input, unsigned short input_len,
   return state;
 }
 
-
-/*
-    if(could_be_mouse) {
-      len = strlen(MOUSE_CMDS[j].key);
-      int res = memcmp(&input[(*index)], MOUSE_CMDS[j].key, len);
-      was_mouse = res == 0;      
-      if (was_mouse) {
-        // so we dont move when user specifies to just press left mouse for example, because absolute would also move the mouse always
-        cmd->type = MOUSE_REL_MOVE; 
-        cmd->value.mouse_rel_cmd.delta_x = 0;
-        cmd->value.mouse_rel_cmd.delta_y = 0;        
-      }
-
-      if (res == 0 && cmd->command == MOUSE_HOLD) {
-        set_mouse_button(kctx, MOUSE_CMDS[j].val);
-        cmd->value.mouse_rel_cmd.buttons |= MOUSE_CMDS[j].val;
-        state = EXPECT_COMMA_COLON;
-        (*index) += len;
-        break;
-      }
-      else if(res == 0 && cmd->command == MOUSE_RELEASE) {
-        clear_mouse_button(kctx, MOUSE_CMDS[j].val);
-        cmd->value.mouse_rel_cmd.buttons |= MOUSE_CMDS[j].val;
-        state = EXPECT_COMMA_COLON;
-        (*index) += len;
-        break;
-      }
-      else if(res == 0){
-        cmd->value.mouse_rel_cmd.buttons |= MOUSE_CMDS[j].val;
-        state = EXPECT_COMMA_COLON;
-        (*index) += len;
-        break;
-      }      
-    }
-
-*/
-
-/* 
-Look ahead and find location of ;
-If there is one:
-parsing INSTEAD of char by character go by "block"
-basically just split on a space
-
-PRESS 0,1;        PRESS 0 ,   1 ;
-
-block1:PRESS
-block2:space
-block3:0,1;
-
-then it can be simplified to:
-if (block1 == "PRESS" || "HOLD" || "RELEASE" ...) {
-  handle_keywords
-}
-
-i = 0
-for(block in blocks_except_1){
-  if (block != SPACE) {
-    break;
-  }
-  i++;
-}
-*/
-
-void noop() {};
-
 PARSING_STATE parse_line(const char *input, unsigned short input_len,
                          UsbState *kctx, ParseResult * result, size_t *index) {
   PARSING_STATE state = EXPECT_KEYWORD;
@@ -419,13 +359,14 @@ PARSING_STATE parse_line(const char *input, unsigned short input_len,
   zero_usb_command(&result->cmds[0]);
   zero_usb_command(&result->cmds[1]);
   UsbCommand* cmd = &result->cmds[0];
+  printf("parse_line:%s \n", &input[(*index)]);
 
   if (cmd == NULL) {
     return NO_REFERENCE_FOUND;
   }
 
   while ((*index) < input_len) {
-    if (input[(*index)] == ' ') {
+    if (input[(*index)] == ' ' || input[(*index)] == '\r' || input[(*index)] == '\n') {
       (*index)++;
       continue;
     }
@@ -438,9 +379,7 @@ PARSING_STATE parse_line(const char *input, unsigned short input_len,
         return state;
       }
       break;
-    case EXPECT_DATA:
-      noop(); // so we dont need the C23 extension here
-      
+    case EXPECT_DATA:      
       state = handle_data(input, input_len, kctx, cmd, index,result, &keys_index);
       if (state != EXPECT_COMMA_COLON) {
         state = DUCK_KEY_ERR;
@@ -448,6 +387,7 @@ PARSING_STATE parse_line(const char *input, unsigned short input_len,
       }
       break;
     case EXPECT_COMMA_COLON:
+      printf("EXPECT_COMMA_COLON:%s \n", &input[(*index)]);
       if (input[(*index)] == ',') {
         (*index)++;
         state = EXPECT_DATA;
@@ -461,6 +401,13 @@ PARSING_STATE parse_line(const char *input, unsigned short input_len,
       }
       break;
     case EXPECT_POSSIBLE_NEWLINE:
+
+      /*while(input[(*index)] == '\r' || input[(*index)] == '\n' ) {
+        (*index)++;
+      }*/
+      return DONE;
+/*
+      printf("EXPECT_POSSIBLE_NEWLINE:%s \n", &input[(*index)]);
       return_found = input[(*index)] == '\r';
       // Check for CRLF
       if ((*index + 2) < input_len && return_found &&
@@ -471,11 +418,12 @@ PARSING_STATE parse_line(const char *input, unsigned short input_len,
       // Check for LF or CR
       else if ((input[(*index)] == '\n') || return_found) {
         (*index)++;
+        printf("EXPECT_POSSIBLE_NEWLINE:%s \n", &input[(*index)]);
         return DONE;
       } else {
         (*index) = done_at;
         return DONE;
-      }
+      }*/
       break;
     case KEYWORD_FOUND_ERR:break;
     case DUCK_KEY_ERR:break;
