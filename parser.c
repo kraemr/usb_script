@@ -32,40 +32,39 @@ unsigned char get_duck_key(char *key_name, size_t len) {
 
 // Returns the number of found u16s, should be equal to 2 for our use case
 int parse_comma_sep_u16(const char *s, uint16_t xy[2]) {
-    xy[0] = 0;
-    xy[1] = 0;
-    int i = 0;     
-    char* end_ptr = NULL;    
-    while (*s && *s != ';') {
-        size_t len = strcspn(s, ",;\n");
-        xy[i] = (uint16_t)strtol(s, &end_ptr, 10); // x is always 0 y is always 1
-        i++;
-        // Jump to the delimiter (',' or ';')
-        s += len;
-        if (*s == ',') s++;
-    }
-    return i;
+  xy[0] = 0;
+  xy[1] = 0;
+  int i = 0;
+  char *end_ptr = NULL;
+  while (*s && *s != ';') {
+    size_t len = strcspn(s, ",;\n");
+    xy[i] = (uint16_t)strtol(s, &end_ptr, 10); // x is always 0 y is always 1
+    i++;
+    // Jump to the delimiter (',' or ';')
+    s += len;
+    if (*s == ',')
+      s++;
+  }
+  return i;
 }
 
 int parse_u16(const char *s, uint16_t *val) {
-    if (!s || !val) return 0;
+  if (!s || !val)
+    return 0;
 
-    char *end_ptr = NULL;
-    unsigned long parsed = strtoul(s, &end_ptr, 10);
+  char *end_ptr = NULL;
+  unsigned long parsed = strtoul(s, &end_ptr, 10);
 
-    // Check if any digits were parsed and value fits in uint16_t
-    if (end_ptr == s || parsed > UINT16_MAX) {
-        return 0;
-    }
+  // Check if any digits were parsed and value fits in uint16_t
+  if (end_ptr == s || parsed > UINT16_MAX) {
+    return 0;
+  }
 
-    *val = (uint16_t)parsed;
-    return 1;
+  *val = (uint16_t)parsed;
+  return 1;
 }
 
-
-void zero_usb_command(UsbCommand *cmd) {
-    memset(cmd,0,sizeof(USB_COMMAND));
-}
+void zero_usb_command(UsbCommand *cmd) { memset(cmd, 0, sizeof(USB_COMMAND)); }
 
 void set_key(UsbState *ktx, unsigned char held, unsigned char val) {
   for (int i = 0; i < sizeof(ktx->keys); i++) {
@@ -79,9 +78,7 @@ void set_key(UsbState *ktx, unsigned char held, unsigned char val) {
   }
 }
 
-void set_mouse_button(UsbState *ktx, uint8_t val) {
-  ktx->mouse_buttons |= val;
-}
+void set_mouse_button(UsbState *ktx, uint8_t val) { ktx->mouse_buttons |= val; }
 
 void clear_mouse_button(UsbState *ktx, uint8_t val) {
   ktx->mouse_buttons &= ~val;
@@ -100,7 +97,7 @@ PARSING_STATE handle_keyword(const char *input, size_t *index,
                              UsbCommand *cmd) {
   PARSING_STATE state =
       KEYWORD_FOUND_ERR; // set to err if loop doesnt find keyword return
- 
+
   for (size_t j = 0; j < KEY_WORD_COUNT; j++) {
     size_t len = strlen(KEYWORDS[j].keyword);
     int res = memcmp(&input[(*index)], KEYWORDS[j].keyword,
@@ -115,88 +112,84 @@ PARSING_STATE handle_keyword(const char *input, size_t *index,
   return state;
 }
 
-
 /*
   -1 means failure
   > -1 means index at which data starts
 */
-int find_data_start(const char *input_ptr,uint16_t input_len,size_t *index) {
+int find_data_start(const char *input_ptr, uint16_t input_len, size_t *index) {
   size_t i = 0;
-  uint8_t is_not_colon_space_comma = (input_ptr[i] != ' ' &&
-          input_ptr[i] != ';' &&
-          input_ptr[i] != ',');
-    
-  uint8_t less_than_max_size =  i < 20;
-  uint8_t in_bounds =  (*index) + i < input_len;
-  do
-  {
-      i++;
-      less_than_max_size =  i < 20;
-      in_bounds =  (*index) + i < input_len;
-      if (!less_than_max_size || !in_bounds) {
-          return -1;
-      }
-      is_not_colon_space_comma = (input_ptr[i] != ' ' &&
-          input_ptr[i] != ';' &&
-          input_ptr[i] != ',');
+  uint8_t is_not_colon_space_comma =
+      (input_ptr[i] != ' ' && input_ptr[i] != ';' && input_ptr[i] != ',');
+
+  uint8_t less_than_max_size = i < 20;
+  uint8_t in_bounds = (*index) + i < input_len;
+  do {
+    i++;
+    less_than_max_size = i < 20;
+    in_bounds = (*index) + i < input_len;
+    if (!less_than_max_size || !in_bounds) {
+      return -1;
     }
-    while (is_not_colon_space_comma &&
-           less_than_max_size &&
-           in_bounds);
-    return i;
+    is_not_colon_space_comma =
+        (input_ptr[i] != ' ' && input_ptr[i] != ';' && input_ptr[i] != ',');
+  } while (is_not_colon_space_comma && less_than_max_size && in_bounds);
+  return i;
 }
 
 PARSING_STATE handle_keyboard(const char *input, unsigned short input_len,
-                          UsbState *kctx, ParseResult * result, size_t *index,
-                          size_t *keys_index) {
+                              UsbState *kctx, ParseResult *result,
+                              size_t *index, size_t *keys_index) {
   PARSING_STATE state = DUCK_KEY_ERR;
-  UsbCommand* cmd = result->cmds;
+  UsbCommand *cmd = result->cmds;
   cmd->type = KEYBOARD;
-  
-  int i = find_data_start(&input[(*index)],input_len,index);
-  if(i == -1 ) {
+
+  int i = find_data_start(&input[(*index)], input_len, index);
+  if (i == -1) {
     return state;
   }
 
   for (size_t j = 0; j < DUCK_KEYS_COUNT; j++) {
-    size_t len = strlen(DUCK_KEYS[j].key);      
+    size_t len = strlen(DUCK_KEYS[j].key);
     if (((*index) + len) > input_len) {
       continue;
     }
 
-    int is_uppercase_or_num =  
-      (((input[(*index) + 1]) <= 57) && (input[(*index) + 1]) >= 48) || 
-      (((input[(*index) + 1]) <= 90) && (input[(*index) + 1]) >= 65);
+    int is_uppercase_or_num =
+        (((input[(*index) + 1]) <= 57) && (input[(*index) + 1]) >= 48) ||
+        (((input[(*index) + 1]) <= 90) && (input[(*index) + 1]) >= 65);
     // check if next ascii number or uppercase ascii
-    if (len == 1 && is_uppercase_or_num)
-    {
+    if (len == 1 && is_uppercase_or_num) {
       continue;
     }
 
-
     int matches = memcmp(&input[(*index)], DUCK_KEYS[j].key, len) == 0;
     if (matches) {
-      //TODO: Make these into constants
+      // TODO: Make these into constants
       uint8_t is_key_mod = j == 37 || j == 38 || j == 55 || j == 56 ||
-                          j == 95 || j == 96 || j == 160 || j == 161;
+                           j == 95 || j == 96 || j == 160 || j == 161;
       if (is_key_mod) {
         cmd->value.keyboard_cmd.modifier |= DUCK_KEYS[j].val;
       }
       // We only want to change key state if HOLD or RELEASE is specified
       else if (cmd->command == KB_HOLD || cmd->command == KB_RELEASE) {
         set_key(kctx, cmd->command == KB_HOLD, DUCK_KEYS[j].val);
-        memcpy(cmd->value.keyboard_cmd.keys, kctx->keys,6);
-        //cmd->value.keyboard_cmd.keys[(*keys_index)] = DUCK_KEYS[j].val;
+        memcpy(cmd->value.keyboard_cmd.keys, kctx->keys, 6);
+        // cmd->value.keyboard_cmd.keys[(*keys_index)] = DUCK_KEYS[j].val;
         result->count = 1;
         (*keys_index)++;
       } else {
         uint8_t index = *keys_index;
-        // If we "press" a keyboard button we also on the first key want to first copy over every key which are not zeroed
-        // In essence if 6btns are held and you press 6 other btns it will still show up with the 6 held btns
-        // If 4btns held and 2btns pressed then the 4btns show up first where the other two show up at the end
-        // This would be much easier with N-Key Rollover, but would also make execution more complex
-        for (int i = 0; index == 0 && (i < sizeof(kctx->keys) / sizeof(unsigned char)); i++) {
-          if(kctx->keys[i] != 0) {
+        // If we "press" a keyboard button we also on the first key want to
+        // first copy over every key which are not zeroed In essence if 6btns
+        // are held and you press 6 other btns it will still show up with the 6
+        // held btns If 4btns held and 2btns pressed then the 4btns show up
+        // first where the other two show up at the end This would be much
+        // easier with N-Key Rollover, but would also make execution more
+        // complex
+        for (int i = 0;
+             index == 0 && (i < sizeof(kctx->keys) / sizeof(unsigned char));
+             i++) {
+          if (kctx->keys[i] != 0) {
             cmd->value.keyboard_cmd.keys[(*keys_index)] = kctx->keys[i];
             (*keys_index)++;
           }
@@ -205,44 +198,47 @@ PARSING_STATE handle_keyboard(const char *input, unsigned short input_len,
         cmd->value.keyboard_cmd.keys[(*keys_index)] = DUCK_KEYS[j].val;
         result->count = 2;
         (*keys_index)++;
-      } 
+      }
       state = EXPECT_COMMA_COLON;
       (*index) += len;
       break;
     }
-  } 
-  if(result->count == 2) {
+  }
+  if (result->count == 2) {
     memcpy(&result->cmds[1], cmd, sizeof(UsbCommand));
-    memset(&result->cmds[1].value.keyboard_cmd.keys, 0, sizeof(USB_COMMAND_VALUE));
-    memcpy(&result->cmds[1].value.keyboard_cmd.keys, kctx->keys,sizeof(uint8_t) * 6);
+    memset(&result->cmds[1].value.keyboard_cmd.keys, 0,
+           sizeof(USB_COMMAND_VALUE));
+    memcpy(&result->cmds[1].value.keyboard_cmd.keys, kctx->keys,
+           sizeof(uint8_t) * 6);
     result->cmds[1].type = KEYBOARD;
   }
   return state;
 }
 
 PARSING_STATE handle_mouse_buttons(const char *input, unsigned short input_len,
-                          UsbState * kctx, ParseResult * result, size_t *index) {
+                                   UsbState *kctx, ParseResult *result,
+                                   size_t *index) {
   PARSING_STATE state = DUCK_KEY_ERR;
   const int MOUSE_CMD_COUNT = (sizeof(MOUSE_CMDS) / sizeof(KeyPair));
-  find_data_start(&input[(*index)],input_len,index);
-  UsbCommand* cmd = &result->cmds[0];
-  
+  find_data_start(&input[(*index)], input_len, index);
+  UsbCommand *cmd = &result->cmds[0];
+
   cmd->type = MOUSE_BUTTONS;
   for (size_t j = 0; j < MOUSE_CMD_COUNT; j++) {
-    size_t len = strlen(MOUSE_CMDS[j].key);   
+    size_t len = strlen(MOUSE_CMDS[j].key);
     if (((*index) + len) > input_len) {
       continue;
     }
     int matches = memcmp(&input[(*index)], MOUSE_CMDS[j].key, len) == 0;
-    if (matches && cmd->command == MOUSE_HOLD ) {
+    if (matches && cmd->command == MOUSE_HOLD) {
       // sets the bit for the mouse button in state
-      set_mouse_button(kctx,MOUSE_CMDS[j].val);
+      set_mouse_button(kctx, MOUSE_CMDS[j].val);
       cmd->value.mouse_rel_cmd.buttons |= MOUSE_CMDS[j].val;
       state = EXPECT_COMMA_COLON;
       result->count = 1;
       (*index) += len;
       break;
-    }else if(matches && cmd->command == MOUSE_RELEASE ) {
+    } else if (matches && cmd->command == MOUSE_RELEASE) {
       // clears the bit set for the mouse button
       clear_mouse_button(kctx, MOUSE_CMDS[j].val);
       cmd->value.mouse_rel_cmd.buttons &= ~MOUSE_CMDS[j].val;
@@ -250,7 +246,7 @@ PARSING_STATE handle_mouse_buttons(const char *input, unsigned short input_len,
       result->count = 1;
       (*index) += len;
       break;
-    }else if(matches){
+    } else if (matches) {
       cmd->value.mouse_rel_cmd.buttons |= MOUSE_CMDS[j].val;
       memcpy(&result->cmds[1], cmd, sizeof(UsbCommand));
       result->cmds[1].value.mouse_rel_cmd.buttons = kctx->mouse_buttons;
@@ -264,18 +260,20 @@ PARSING_STATE handle_mouse_buttons(const char *input, unsigned short input_len,
   return state;
 }
 
-
 /*
-  save x and y of the last mouse_move, so that clicking the mouse keeps the position
+  save x and y of the last mouse_move, so that clicking the mouse keeps the
+  position
   TODO Error Handling
 */
-PARSING_STATE handle_abs_mouse_move(const char *input,unsigned short input_len,UsbState * kctx, size_t *index,ParseResult * result) {
+PARSING_STATE handle_abs_mouse_move(const char *input, unsigned short input_len,
+                                    UsbState *kctx, size_t *index,
+                                    ParseResult *result) {
   PARSING_STATE state = DUCK_KEY_ERR;
-  int res = find_data_start(&input[(*index)],input_len, index);
+  int res = find_data_start(&input[(*index)], input_len, index);
   uint16_t temp_arr[2] = {0};
   res = parse_comma_sep_u16(&input[(*index)], temp_arr);
 
-  if(res == 2) {    
+  if (res == 2) {
     kctx->mouse_x_abs = temp_arr[0];
     kctx->mouse_y_abs = temp_arr[1];
 
@@ -286,13 +284,15 @@ PARSING_STATE handle_abs_mouse_move(const char *input,unsigned short input_len,U
     result->cmds[0].value.mouse_abs_cmd.x = kctx->mouse_x_abs;
     result->cmds[0].value.mouse_abs_cmd.y = kctx->mouse_y_abs;
     // Keep scroll wheel "state", for example if scroll wheel is Held down/up
-    result->cmds[0].value.mouse_abs_cmd.horizontal_scroll = kctx->horizontal_scroll;
+    result->cmds[0].value.mouse_abs_cmd.horizontal_scroll =
+        kctx->horizontal_scroll;
     result->cmds[0].value.mouse_abs_cmd.vertical_scroll = kctx->vertical_scroll;
   }
   result->count = 1;
   state = EXPECT_COMMA_COLON;
   int i = 0;
-  for(;i < input_len && input[(*index) + i] != ';'; i++);
+  for (; i < input_len && input[(*index) + i] != ';'; i++)
+    ;
   (*index += i);
   return state;
 }
@@ -301,107 +301,119 @@ PARSING_STATE handle_abs_mouse_move(const char *input,unsigned short input_len,U
   Delta/Relative movements have no state to account for movements
   TODO Error Handling
 */
-PARSING_STATE handle_rel_mouse_move(const char *input,unsigned short input_len,UsbState * kctx, size_t *index,ParseResult * result) {
+PARSING_STATE handle_rel_mouse_move(const char *input, unsigned short input_len,
+                                    UsbState *kctx, size_t *index,
+                                    ParseResult *result) {
   PARSING_STATE state = DUCK_KEY_ERR;
-  int res = find_data_start(&input[(*index)],input_len, index);
+  int res = find_data_start(&input[(*index)], input_len, index);
   uint16_t temp_arr[2] = {0};
   res = parse_comma_sep_u16(&input[(*index)], temp_arr);
-  
-  if(res == 2) {    
+
+  if (res == 2) {
     result->cmds[0].command = MOUSE_RELATIVE_MOVE;
-    result->cmds[0].type = MOUSE_REL_MOVE;    
-    result->cmds[0].value.mouse_rel_cmd.buttons = kctx->mouse_buttons;    
-    // TODO: Throw error if out of bounds ? 
+    result->cmds[0].type = MOUSE_REL_MOVE;
+    result->cmds[0].value.mouse_rel_cmd.buttons = kctx->mouse_buttons;
+    // TODO: Throw error if out of bounds ?
     result->cmds[0].value.mouse_rel_cmd.delta_x = temp_arr[0];
     result->cmds[0].value.mouse_rel_cmd.delta_y = temp_arr[1];
     // Keep scroll wheel "state", for example if scroll wheel is Held down/up
-    result->cmds[0].value.mouse_rel_cmd.horizontal_scroll = kctx->horizontal_scroll;
+    result->cmds[0].value.mouse_rel_cmd.horizontal_scroll =
+        kctx->horizontal_scroll;
     result->cmds[0].value.mouse_rel_cmd.vertical_scroll = kctx->vertical_scroll;
   }
   result->count = 1;
   state = EXPECT_COMMA_COLON;
   int i = 0;
-  for(;i < input_len && input[(*index) + i] != ';'; i++);
+  for (; i < input_len && input[(*index) + i] != ';'; i++)
+    ;
   (*index += i);
   return state;
 }
 
+PARSING_STATE handle_delay(const char *input, unsigned short input_len,
+                           size_t *index, ParseResult *result) {
+  PARSING_STATE state = DUCK_KEY_ERR;
+  int success = 0;
+  uint16_t value = 0;
+  UsbCommand *cmd = result->cmds;
+  success = parse_u16(&input[(*index)], &value);
 
-PARSING_STATE handle_delay(const char *input,unsigned short input_len, size_t *index,ParseResult * result) {
-    PARSING_STATE state = DUCK_KEY_ERR;
-    int success = 0;
-    uint16_t value=0;
-    UsbCommand* cmd = result->cmds;
-    success = parse_u16(&input[(*index)],&value);
-
-    if(success) {
-        result->count = 1;
-        cmd->command     =  DELAY;
-        cmd->type        =  WAIT;
-        cmd->value.delay =  value;
-        state = EXPECT_COMMA_COLON;
-        int i = 0;
-        for(;i < input_len && input[(*index) + i] != ';'; i++);
-        (*index += i);
-    }
-    return state;
+  if (success) {
+    result->count = 1;
+    cmd->command = DELAY;
+    cmd->type = WAIT;
+    cmd->value.delay = value;
+    state = EXPECT_COMMA_COLON;
+    int i = 0;
+    for (; i < input_len && input[(*index) + i] != ';'; i++)
+      ;
+    (*index += i);
+  }
+  return state;
 }
 
-
 PARSING_STATE handle_data(const char *input, unsigned short input_len,
-                          UsbState *kctx, UsbCommand *cmd, size_t *index,ParseResult * result,
-                          size_t *keys_index) {
+                          UsbState *kctx, UsbCommand *cmd, size_t *index,
+                          ParseResult *result, size_t *keys_index) {
   PARSING_STATE state = DUCK_KEY_ERR;
   switch (cmd->command) {
   case SET_LANG:
   case SWITCH_HID_MODE:
   case MOUSE_PRESS:
-    state = handle_mouse_buttons(input,input_len,kctx,result,index);break;
+    state = handle_mouse_buttons(input, input_len, kctx, result, index);
+    break;
   case MOUSE_HOLD:
-    state = handle_mouse_buttons(input,input_len,kctx,result,index);break;
+    state = handle_mouse_buttons(input, input_len, kctx, result, index);
+    break;
   case MOUSE_RELEASE:
-    state = handle_mouse_buttons(input,input_len,kctx,result,index);break;
+    state = handle_mouse_buttons(input, input_len, kctx, result, index);
+    break;
   case KB_PRESS:
-    state = handle_keyboard(input,input_len,kctx,result,index,keys_index);break;
+    state = handle_keyboard(input, input_len, kctx, result, index, keys_index);
+    break;
   case KB_HOLD:
-    state = handle_keyboard(input,input_len,kctx,result,index,keys_index);break;
+    state = handle_keyboard(input, input_len, kctx, result, index, keys_index);
+    break;
   case KB_RELEASE:
-    state = handle_keyboard(input,input_len,kctx,result,index,keys_index);break;
+    state = handle_keyboard(input, input_len, kctx, result, index, keys_index);
+    break;
   case RESTART:
     // noop
   case UNSUPPORTED:
     // noop
   case DELAY:
-    state = handle_delay(input,input_len,index,result);break;
+    state = handle_delay(input, input_len, index, result);
+    break;
   case MOUSE_ABSOLUTE_MOVE:
-    state = handle_abs_mouse_move(input,input_len,kctx,index,result);
+    state = handle_abs_mouse_move(input, input_len, kctx, index, result);
   case MOUSE_RELATIVE_MOVE:
-    state = handle_rel_mouse_move(input, input_len,kctx,index, result);
+    state = handle_rel_mouse_move(input, input_len, kctx, index, result);
     break;
   }
   return state;
 }
 
 PARSING_STATE parse_line(const char *input, unsigned short input_len,
-                         UsbState *kctx, ParseResult * result, size_t *index) {
+                         UsbState *kctx, ParseResult *result, size_t *index) {
   PARSING_STATE state = EXPECT_KEYWORD;
-  size_t keys_index = 0;  
-  result->count=0;
+  size_t keys_index = 0;
+  result->count = 0;
   zero_usb_command(&result->cmds[0]);
   zero_usb_command(&result->cmds[1]);
-  UsbCommand* cmd = &result->cmds[0];
-  //printf("parse_line:%s \n", &input[(*index)]);
+  UsbCommand *cmd = &result->cmds[0];
+  // printf("parse_line:%s \n", &input[(*index)]);
 
   if (cmd == NULL) {
     return NO_REFERENCE_FOUND;
   }
 
   while ((*index) < input_len) {
-    if (input[(*index)] == ' ' || input[(*index)] == '\r' || input[(*index)] == '\n') {
+    if (input[(*index)] == ' ' || input[(*index)] == '\r' ||
+        input[(*index)] == '\n') {
       (*index)++;
       continue;
     }
-    
+
     switch (state) {
     case EXPECT_KEYWORD:
       state = handle_keyword(input, index, cmd);
@@ -410,19 +422,20 @@ PARSING_STATE parse_line(const char *input, unsigned short input_len,
         return state;
       }
       break;
-    case EXPECT_DATA:      
-      state = handle_data(input, input_len, kctx, cmd, index,result, &keys_index);
+    case EXPECT_DATA:
+      state =
+          handle_data(input, input_len, kctx, cmd, index, result, &keys_index);
       if (state != EXPECT_COMMA_COLON) {
         state = DUCK_KEY_ERR;
         return state;
       }
       break;
     case EXPECT_COMMA_COLON:
-    //  printf("EXPECT_COMMA_COLON:%s \n", &input[(*index)]);
+      //  printf("EXPECT_COMMA_COLON:%s \n", &input[(*index)]);
       if (input[(*index)] == ',') {
         (*index)++;
         state = EXPECT_DATA;
-      } else if (input[(*index)] == ';') {        
+      } else if (input[(*index)] == ';') {
         (*index)++;
         state = (*index) >= input_len ? DONE : EXPECT_POSSIBLE_NEWLINE;
         return DONE;
@@ -434,13 +447,20 @@ PARSING_STATE parse_line(const char *input, unsigned short input_len,
     case EXPECT_POSSIBLE_NEWLINE:
       return DONE;
       break;
-    case KEYWORD_FOUND_ERR:break;
-    case DUCK_KEY_ERR:break;
-    case COMMA_COLON_MISSING:break;
-    case LINE_TOO_LONG:break;
-    case NO_REFERENCE_FOUND:break;
-    case DONE:break;
-    case DONE_PRESS:break;
+    case KEYWORD_FOUND_ERR:
+      break;
+    case DUCK_KEY_ERR:
+      break;
+    case COMMA_COLON_MISSING:
+      break;
+    case LINE_TOO_LONG:
+      break;
+    case NO_REFERENCE_FOUND:
+      break;
+    case DONE:
+      break;
+    case DONE_PRESS:
+      break;
     }
   }
   return state;
@@ -456,15 +476,15 @@ PARSING_STATE parse_all_alloc(const char *input, size_t input_len,
   PARSING_STATE state = DONE;
   ParseResult result;
   while (index < input_len) {
-    state = parse_line(input, input_len, ctx,&result,&index);
+    state = parse_line(input, input_len, ctx, &result, &index);
     cmd_list_ptr[(*cmd_list_len)] = result.cmds[0];
     if (state == DONE) {
-      if(result.count == 2) {
+      if (result.count == 2) {
         (*cmd_list_len)++;
         cmd_list_ptr[(*cmd_list_len)] = result.cmds[1];
       }
       (*cmd_list_len)++;
-    } else {      
+    } else {
       break;
     }
   }
