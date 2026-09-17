@@ -186,7 +186,7 @@ const TestCase MOUSE_PRESS_ALL = {
                        .type = MOUSE_BUTTONS,
                        .value = {.mouse_rel_cmd =
                                      {
-                                         .buttons = 0b00000000,
+                                         .buttons = 0,
                                          .delta_x = 0,
                                          .delta_y = 0,
                                          .vertical_scroll = 0,
@@ -196,6 +196,100 @@ const TestCase MOUSE_PRESS_ALL = {
             },
         },
     .results_len = 1};
+
+const TestCase
+    MOUSE_PRESS_HOLD = {.name = "MOUSE_PRESS_HOLD",
+                        .payload =
+                            "mouse_hold mouse_right;mouse_press mouse_left;",
+                        .results =
+                            {
+                                {.count = 1,
+                                 .cmds =
+                                     {
+                                         {.command = MOUSE_HOLD,
+                                          .type = MOUSE_BUTTONS,
+                                          .value =
+                                              {.mouse_rel_cmd =
+                                                   {
+                                                       .buttons = 0x2,
+                                                       .delta_x = 0,
+                                                       .delta_y = 0,
+                                                       .vertical_scroll = 0,
+                                                       .horizontal_scroll = 0,
+                                                   }}},
+                                     }
+
+                                },
+                                {.count = 2,
+                                 .cmds =
+                                     {
+                                         {.command = MOUSE_PRESS,
+                                          .type = MOUSE_BUTTONS,
+                                          .value =
+                                              {.mouse_rel_cmd =
+                                                   {
+                                                       .buttons = 0x1 | 0x2,
+                                                       .delta_x = 0,
+                                                       .delta_y = 0,
+                                                       .vertical_scroll = 0,
+                                                       .horizontal_scroll = 0,
+                                                   }}},
+                                         {.command = MOUSE_PRESS,
+                                          .type = MOUSE_BUTTONS,
+                                          .value =
+                                              {
+                                                  .mouse_rel_cmd =
+                                                      {
+                                                          .buttons = 0x2,
+                                                          .delta_x = 0,
+                                                          .delta_y = 0,
+                                                          .vertical_scroll = 0,
+                                                          .horizontal_scroll = 0,
+                                                      }}}}
+
+                                },
+                            },
+                        .results_len = 2};
+
+const TestCase MOUSE_HOLD_RELEASE = {
+    .name = "MOUSE_HOLD_RELEASE",
+    .payload = "mouse_hold mouse_right; mouse_release mouse_right",
+    .results =
+        {
+            {.count = 1,
+             .cmds =
+                 {
+                     {.command = MOUSE_HOLD,
+                      .type = MOUSE_BUTTONS,
+                      .value = {.mouse_rel_cmd =
+                                    {
+                                        .buttons = 0x2,
+                                        .delta_x = 0,
+                                        .delta_y = 0,
+                                        .vertical_scroll = 0,
+                                        .horizontal_scroll = 0,
+                                    }}},
+                 }
+
+            },
+            {.count = 1,
+             .cmds =
+                 {
+                     {.command = MOUSE_RELEASE,
+                      .type = MOUSE_BUTTONS,
+                      .value = {.mouse_rel_cmd =
+                                    {
+                                        .buttons = 0,
+                                        .delta_x = 0,
+                                        .delta_y = 0,
+                                        .vertical_scroll = 0,
+                                        .horizontal_scroll = 0,
+                                    }}},
+                 }
+
+            },
+        },
+    .results_len = 2};
 
 const TestCase MOUSE_MOVE_REL = {
     .name = "MOUSE_MOVE_REL",
@@ -335,9 +429,10 @@ const TestCase
          .results_len = 2};
 
 const TestCase KEYBOARD_TESTCASES[] = {
-    SMALL_DELAY,    MOUSE_PRESS_LEFT_ONLY, MOUSE_PRESS_ALL,
-    MOUSE_MOVE_REL, MOUSE_MOVE_ABS,        KEYBOARD_PRESS,
-    KEYBOARD_HOLD,  KEYBOARD_RELEASE,      KEYBOARD_HOLD_PRESS};
+    SMALL_DELAY,        MOUSE_PRESS_LEFT_ONLY, MOUSE_PRESS_ALL,
+    MOUSE_MOVE_REL,     MOUSE_MOVE_ABS,        KEYBOARD_PRESS,
+    KEYBOARD_HOLD,      KEYBOARD_RELEASE,      KEYBOARD_HOLD_PRESS,
+    MOUSE_HOLD_RELEASE, MOUSE_PRESS_HOLD};
 
 /*
     Closely simulate how the file is read on the pico from sd
