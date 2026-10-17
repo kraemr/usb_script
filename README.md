@@ -1,6 +1,10 @@
 # Usb Script
 This Parser/Scripting Language is distributed under LGPL2.1 and you are free to use this with your own project with a compatible License.
 
+## What does this do?
+This Parser takes in commands like press 0; and translates it into a data structure close to what gets sent over Usb for a Keypress.
+Which can then easily be executed by a program which acts as a USB device.
+
 These are the currently implemented commands:
 ```c
 // hold key 0 and 1 and release 0
